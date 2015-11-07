@@ -297,7 +297,7 @@ commands:
       - name: magento-mirror-1.8.0.0
         version: 1.8.0.0
         dist:
-          url: https://github.com/ktomk/magento-mirror/archive/1.8.0.0.zip
+          url: https://github.com/OpenMage/magento-mirror/archive/1.8.0.0.zip
           type: zip
           shasum: 9b1dee54d0b047b66d7ad6b8ea1ff414b7773093
         extra:
