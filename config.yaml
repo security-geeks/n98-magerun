@@ -352,21 +352,21 @@ commands:
       - name: sample-data-1.9.1.0
         version: 1.9.1.0
         dist:
-          url: http://www.magentocommerce.com/downloads/assets/1.9.1.0/magento-sample-data-1.9.1.0.tar.gz
+          url: http://sourceforge.net/projects/mageloads/files/assets/1.9.1.0/magento-sample-data-1.9.1.0.tar.gz
           type: tar
           shasum: 617e0271900772ac8f11e7bb86e29fca0f640562
 
       - name: sample-data-1.9.0.0
         version: 1.9.0.0
         dist:
-          url: http://www.magentocommerce.com/downloads/assets/1.9.0.0/magento-sample-data-1.9.0.0.tar.gz
+          url: http://sourceforge.net/projects/mageloads/files/assets/1.9.0.0/magento-sample-data-1.9.0.0.tar.gz
           type: tar
           shasum: b2b535901eb2db92a8602baf8a839ab2120c4c8f
 
       - name: sample-data-1.6.1.0
         version: 1.6.1.0
         dist:
-          url: http://www.magentocommerce.com/downloads/assets/1.6.1.0/magento-sample-data-1.6.1.0.tar.gz
+          url: http://sourceforge.net/projects/mageloads/files/assets/1.6.1.0/magento-sample-data-1.6.1.0.tar.gz
           type: tar
           shasum: a9226bc92966855327f6eb62ff8f6c562b2113a2
 
