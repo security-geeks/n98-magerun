@@ -373,9 +373,9 @@ commands:
       - name: sample-data-1.1.2
         version: 1.1.2
         dist:
-          url: http://www.magentocommerce.com/downloads/assets/1.1.2/magento-sample-data-1.1.2.tar.bz2
-          type: tar
-          shasum: e8ddbf94698224fb71c946e789f7a23dec236384
+          url: http://sourceforge.net/projects/mageloads/files/assets/1.1.2/magento-sample-data-1.1.2.zip
+          type: zip
+          shasum: 6bbb57e387c59da2752fe013aadef6dcd3cd2b29
 
     installation:
       pre-check:
