@@ -13,7 +13,7 @@ namespace N98\Util;
  * @covers \N98\Util\AutoloadHandler
  * @package N98\Util
  */
-class AutoloadHandlerTest extends \PHPUnit_Framework_TestCase
+class AutoloadHandlerTest extends \PHPUnit\Framework\TestCase
 {
     /**
      * @var array
@@ -41,11 +41,12 @@ class AutoloadHandlerTest extends \PHPUnit_Framework_TestCase
 
     /**
      * @test
-     * @expectedException \BadMethodCallException
-     * @expectedExceptionMessage Autoload callback is not callable
      */
     public function noRegistrationOnCreation()
     {
+        $this->expectException(\BadMethodCallException::class);
+        $this->expectExceptionMessage('Autoload callback is not callable');
+
         $handler = $this->create(null, AutoloadHandler::NO_AUTO_REGISTER);
         $handler->disable(); // assertions require a disabled handler b/c of exceptions
 
@@ -125,7 +126,7 @@ class AutoloadHandlerTest extends \PHPUnit_Framework_TestCase
         $handler->setEnabled(false);
         $this->assertFalse($handler->__invoke("Test"));
         $handler->setEnabled(true);
-        $this->setExpectedException('BadMethodCallException');
+        $this->expectException(\BadMethodCallException::class);
         $this->assertFalse($handler->__invoke("Test"));
         $this->fail('An expected exception has not been thrown');
     }

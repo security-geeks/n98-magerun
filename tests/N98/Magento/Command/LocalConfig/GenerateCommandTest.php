@@ -16,15 +16,14 @@ class GenerateCommandTest extends TestCase
     {
         $this->configFile = sprintf('%s/%s/local.xml', sys_get_temp_dir(), $this->getName());
         mkdir(dirname($this->configFile), 0777, true);
-        $commandMock = $this->getMock(
-            '\N98\Magento\Command\LocalConfig\GenerateCommand',
-            array('_getLocalConfigFilename')
-        );
+        $commandMock = $this->getMockBuilder(\N98\Magento\Command\LocalConfig\GenerateCommand::class)
+            ->setMethods(['_getLocalConfigFilename'])
+            ->getMock();
 
         $commandMock
             ->expects($this->any())
             ->method('_getLocalConfigFilename')
-            ->will($this->returnValue($this->configFile));
+            ->willReturn($this->configFile);
 
         $this->getApplication()->add($commandMock);
 
@@ -32,6 +31,8 @@ class GenerateCommandTest extends TestCase
             sprintf('%s/app/etc/local.xml.template', $this->getTestMagentoRoot()),
             sprintf('%s/local.xml.template', dirname($this->configFile))
         );
+
+        parent::setUp();
     }
 
     public function testErrorIsPrintedIfConfigFileExists()
@@ -41,7 +42,7 @@ class GenerateCommandTest extends TestCase
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
+            [
                 'command'         => $command->getName(),
                 'db-host'         => 'my_db_host',
                 'db-user'         => 'my_db_user',
@@ -50,7 +51,7 @@ class GenerateCommandTest extends TestCase
                 'session-save'    => 'my_session_save',
                 'admin-frontname' => 'my_admin_frontname',
                 'encryption-key'  => 'key123456789',
-            )
+            ]
         );
 
         $this->assertFileExists($this->configFile);
@@ -66,7 +67,7 @@ class GenerateCommandTest extends TestCase
         $command = $this->getApplication()->find('local-config:generate');
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
+            [
                 'command'         => $command->getName(),
                 'db-host'         => 'my_db_host',
                 'db-user'         => 'my_db_user',
@@ -75,7 +76,7 @@ class GenerateCommandTest extends TestCase
                 'session-save'    => 'my_session_save',
                 'admin-frontname' => 'my_admin_frontname',
                 'encryption-key'  => 'key123456789',
-            )
+            ]
         );
 
         $this->assertContains(
@@ -93,7 +94,7 @@ class GenerateCommandTest extends TestCase
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
+            [
                 'command'         => $command->getName(),
                 'db-host'         => 'my_db_host',
                 'db-user'         => 'my_db_user',
@@ -102,7 +103,7 @@ class GenerateCommandTest extends TestCase
                 'session-save'    => 'my_session_save',
                 'admin-frontname' => 'my_admin_frontname',
                 'encryption-key'  => 'key123456789',
-            )
+            ]
         );
 
         $this->assertContains(
@@ -119,7 +120,7 @@ class GenerateCommandTest extends TestCase
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
+            [
                 'command'         => $command->getName(),
                 'db-host'         => 'my_db_host',
                 'db-user'         => 'my_db_user',
@@ -127,7 +128,7 @@ class GenerateCommandTest extends TestCase
                 'db-name'         => 'my_db_name',
                 'session-save'    => 'my_session_save',
                 'admin-frontname' => 'my_admin_frontname',
-            )
+            ]
         );
 
         $this->assertFileExists($this->configFile);
@@ -150,7 +151,7 @@ class GenerateCommandTest extends TestCase
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
+            [
                 'command'         => $command->getName(),
                 'db-host'         => 'my_db_host',
                 'db-user'         => 'my_db_user',
@@ -159,7 +160,7 @@ class GenerateCommandTest extends TestCase
                 'session-save'    => 'my_session_save',
                 'admin-frontname' => 'my_admin_frontname',
                 'encryption-key'  => 'key123456789',
-            )
+            ]
         );
 
         $this->assertFileExists($this->configFile);
@@ -182,17 +183,17 @@ class GenerateCommandTest extends TestCase
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
+            [
                 'command'         => $command->getName(),
                 'db-host'         => 'my_db_host',
                 'db-user'         => 'my_db_user',
                 'db-pass'         => 'my_db_pass',
                 'db-name'         => 'my_db_name',
                 'encryption-key'  => 'key123456789',
-            ),
-            array(
+            ],
+            [
                 'interactive' => false,
-            )
+            ]
         );
 
         $this->assertFileExists($this->configFile);
@@ -218,7 +219,7 @@ class GenerateCommandTest extends TestCase
     {
         $command = $this->getApplication()->find('local-config:generate');
 
-        $options = array(
+        $options = [
             'command'         => $command->getName(),
             'db-host'         => 'my_db_host',
             'db-user'         => 'my_db_user',
@@ -227,22 +228,26 @@ class GenerateCommandTest extends TestCase
             'session-save'    => 'my_session_save',
             'admin-frontname' => 'my_admin_frontname',
             'encryption-key'  => 'key123456789',
-        );
+        ];
 
         unset($options[$param]);
 
-        $dialog = $this->getMock('Symfony\Component\Console\Helper\DialogHelper', array('ask'));
+        $dialog = $this->getMockBuilder(\Symfony\Component\Console\Helper\DialogHelper::class)
+            ->disableOriginalConstructor()
+            ->setMethods(['ask'])
+            ->getMock();
+
         $dialog->expects($this->once())
             ->method('ask')
             ->with(
                 $this->isInstanceOf('Symfony\Component\Console\Output\StreamOutput'),
                 sprintf('<question>Please enter the %s:</question>', $prompt)
             )
-            ->will($this->returnValue(null));
+            ->willReturn(null);
 
         $command->getHelperSet()->set($dialog, 'dialog');
 
-        $this->setExpectedException('InvalidArgumentException', sprintf('%s was not set', $param));
+        $this->expectException('InvalidArgumentException', sprintf('%s was not set', $param));
 
         $commandTester = new CommandTester($command);
         $commandTester->execute($options);
@@ -253,28 +258,31 @@ class GenerateCommandTest extends TestCase
      */
     public function requiredFieldsProvider()
     {
-        return array(
-            array('db-host', 'database host'),
-            array('db-user', 'database username'),
-            array('db-name', 'database name'),
-            array('session-save', 'session save'),
-            array('admin-frontname', 'admin frontname'),
-        );
+        return [
+            ['db-host', 'database host'],
+            ['db-user', 'database username'],
+            ['db-name', 'database name'],
+            ['session-save', 'session save'],
+            ['admin-frontname', 'admin frontname'],
+        ];
     }
 
     public function testExecuteInteractively()
     {
         $command = $this->getApplication()->find('local-config:generate');
-        $dialog = $this->getMock('Symfony\Component\Console\Helper\DialogHelper', array('ask'));
+        $dialog = $this->getMockBuilder(\Symfony\Component\Console\Helper\DialogHelper::class)
+            ->disableOriginalConstructor()
+            ->setMethods(['ask'])
+            ->getMock();
 
-        $inputs = array(
-            array('database host', 'some-db-host'),
-            array('database username', 'some-db-username'),
-            array('database password', 'some-db-password'),
-            array('database name', 'some-db-name'),
-            array('session save', 'some-session-save'),
-            array('admin frontname', 'some-admin-front-name'),
-        );
+        $inputs = [
+            ['database host', 'some-db-host'],
+            ['database username', 'some-db-username'],
+            ['database password', 'some-db-password'],
+            ['database name', 'some-db-name'],
+            ['session save', 'some-session-save'],
+            ['admin frontname', 'some-admin-front-name'],
+        ];
 
         foreach ($inputs as $i => $input) {
             list($prompt, $returnValue) = $input;
@@ -284,7 +292,7 @@ class GenerateCommandTest extends TestCase
                     $this->isInstanceOf('Symfony\Component\Console\Output\StreamOutput'),
                     sprintf('<question>Please enter the %s:</question>', $prompt)
                 )
-                ->will($this->returnValue($returnValue));
+                ->willReturn($returnValue);
         }
 
         $command->getHelperSet()->set($dialog, 'dialog');
@@ -308,20 +316,24 @@ class GenerateCommandTest extends TestCase
     public function testIfPasswordOmittedItIsWrittenBlank()
     {
         $command = $this->getApplication()->find('local-config:generate');
-        $dialog = $this->getMock('Symfony\Component\Console\Helper\DialogHelper', array('ask'));
+        $dialog = $this->getMockBuilder(\Symfony\Component\Console\Helper\DialogHelper::class)
+            ->disableOriginalConstructor()
+            ->setMethods(['ask'])
+            ->getMock();
+
         $dialog->expects($this->once())
             ->method('ask')
             ->with(
                 $this->isInstanceOf('Symfony\Component\Console\Output\StreamOutput'),
                 sprintf('<question>Please enter the database password:</question>')
             )
-            ->will($this->returnValue(null));
+            ->willReturn(null);
 
         $command->getHelperSet()->set($dialog, 'dialog');
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
+            [
                 'command'         => $command->getName(),
                 'db-host'         => 'my_db_host',
                 'db-user'         => 'my_db_user',
@@ -329,7 +341,7 @@ class GenerateCommandTest extends TestCase
                 'session-save'    => 'my_session_save',
                 'admin-frontname' => 'my_admin_frontname',
                 'encryption-key'  => 'key123456789',
-            )
+            ]
         );
 
         $this->assertFileExists($this->configFile);
@@ -349,7 +361,10 @@ class GenerateCommandTest extends TestCase
     public function testCdataTagIsNotAddedIfPresentInInput()
     {
         $command = $this->getApplication()->find('local-config:generate');
-        $dialog = $this->getMock('Symfony\Component\Console\Helper\DialogHelper', array('ask'));
+        $dialog = $this->getMockBuilder(\Symfony\Component\Console\Helper\DialogHelper::class)
+            ->disableOriginalConstructor()
+            ->setMethods(['ask'])
+            ->getMock();
 
         $dialog->expects($this->once())
             ->method('ask')
@@ -357,13 +372,13 @@ class GenerateCommandTest extends TestCase
                 $this->isInstanceOf('Symfony\Component\Console\Output\StreamOutput'),
                 '<question>Please enter the database host:</question>'
             )
-            ->will($this->returnValue('CDATAdatabasehost'));
+            ->willReturn('CDATAdatabasehost');
 
         $command->getHelperSet()->set($dialog, 'dialog');
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
+            [
                 'command'         => $command->getName(),
                 'db-user'         => 'my_db_user',
                 'db-pass'         => 'my_db_pass',
@@ -371,7 +386,7 @@ class GenerateCommandTest extends TestCase
                 'session-save'    => 'my_session_save',
                 'admin-frontname' => 'my_admin_frontname',
                 'encryption-key'  => 'key123456789',
-            )
+            ]
         );
 
         $this->assertFileExists($this->configFile);

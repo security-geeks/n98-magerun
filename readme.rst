@@ -37,6 +37,11 @@ Compatibility
 The tools will automatically be tested for multiple PHP versions. It's currently running in various Linux distributions and Mac OS X.
 Microsoft Windows is not fully supported (some Commands like `db:dump` or `install` are excluded).
 
+We test the tool agains this versions:
+
+- Magento 1.9.4.5 PHP 7.2
+- OpenMage LTS 20.0.3 PHP 7.3
+
 Installation
 ------------
 
@@ -410,7 +415,7 @@ Dumps your database and excludes some tables. This is useful i.e. for developmen
 Separate each table to strip by a space.
 You can use wildcards like * and ? in the table names to strip multiple tables.
 In addition you can specify pre-defined table groups, that start with an @
-Example: "dataflow_batch_export unimportant_module_* @log
+Example: "dataflow_batch_export unimportant_module_* @log"
 
 .. code-block:: sh
 

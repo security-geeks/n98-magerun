@@ -19,28 +19,28 @@ class CreateUserCommandTest extends TestCase
     public function setUp()
     {
         $this->command = $this->getMockBuilder('\N98\Magento\Command\Admin\User\CreateUserCommand')
-            ->setMethods(array('getUserModel', 'getRoleModel', 'getRulesModel'))
+            ->setMethods(['getUserModel', 'getRoleModel', 'getRulesModel'])
             ->getMock();
 
         $this->userModel = $this->getMockBuilder('Mage_Admin_Model_User')
-            ->setMethods(array('setData', 'save', 'setRoleIds', 'getUserId', 'setRoleUserId', 'saveRelations'))
+            ->setMethods(['setData', 'save', 'setRoleIds', 'getUserId', 'setRoleUserId', 'saveRelations'])
             ->disableOriginalConstructor()
             ->getMock();
 
         $this->command
             ->expects($this->any())
             ->method('getUserModel')
-            ->will($this->returnValue($this->userModel));
+            ->willReturn($this->userModel);
 
         $this->roleModel = $this->getMockBuilder('Mage_Admin_Model_Role')
-            ->setMethods(array('load', 'getId', 'setName', 'setRoleType', 'save'))
+            ->setMethods(['load', 'getId', 'setName', 'setRoleType', 'save'])
             ->disableOriginalConstructor()
             ->getMock();
 
         $this->command
             ->expects($this->any())
             ->method('getRoleModel')
-            ->will($this->returnValue($this->roleModel));
+            ->willReturn($this->roleModel);
 
         $this->rulesModel = $this->getMockBuilder('Mage_Admin_Model_Rules')
             ->setMethods(array('setRoleId', 'setResources', 'saveRel'))
@@ -50,77 +50,80 @@ class CreateUserCommandTest extends TestCase
         $this->command
             ->expects($this->any())
             ->method('getRulesModel')
-            ->will($this->returnValue($this->rulesModel));
+            ->willReturn($this->rulesModel);
     }
 
     public function testArgumentPromptsWhenNotPresent()
     {
-        $dialog = $this->getMock('Symfony\Component\Console\Helper\DialogHelper', array('ask', 'askHiddenResponse'));
+        $dialog = $this->getMockBuilder(\Symfony\Component\Console\Helper\DialogHelper::class)
+            ->disableOriginalConstructor()
+            ->setMethods(['ask', 'askHiddenResponse'])
+            ->getMock();
 
         $dialog->expects($this->at(0))
             ->method('ask')
-            ->will($this->returnValue('aydin'));
+            ->willReturn('aydin');
 
         $dialog->expects($this->at(1))
             ->method('ask')
-            ->will($this->returnValue('aydin@hotmail.co.uk'));
+            ->willReturn('aydin@hotmail.co.uk');
 
         $dialog->expects($this->at(2))
             ->method('askHiddenResponse')
-            ->will($this->returnValue('p4ssw0rd'));
+            ->willReturn('p4ssw0rd');
 
         $dialog->expects($this->at(3))
             ->method('ask')
-            ->will($this->returnValue('Aydin'));
+            ->willReturn('Aydin');
 
         $dialog->expects($this->at(4))
             ->method('ask')
-            ->will($this->returnValue('Hassan'));
+            ->willReturn('Hassan');
 
         $this->roleModel
             ->expects($this->once())
             ->method('load')
             ->with('Administrators', 'role_name')
-            ->will($this->returnValue($this->roleModel));
+            ->willReturn($this->roleModel);
 
         $this->roleModel
             ->method('getId')
-            ->will($this->returnValue(9));
+            ->willReturn(9);
 
         $this->userModel
             ->expects($this->at(0))
             ->method('setData')
-            ->with(array(
+            ->with([
                 'username'  => 'aydin',
                 'firstname' => 'Aydin',
                 'lastname'  => 'Hassan',
                 'email'     => 'aydin@hotmail.co.uk',
                 'password'  => 'p4ssw0rd',
                 'is_active' => 1,
-            ))
-            ->will($this->returnValue($this->userModel));
+            ])
+            ->willReturn($this->userModel);
 
         $this->userModel
             ->expects($this->once())
             ->method('save')
-            ->will($this->returnValue($this->userModel));
+            ->willReturn($this->userModel);
 
         $this->userModel
             ->expects($this->once(2))
             ->method('setRoleIds')
             ->with(array(9))
-            ->will($this->returnValue($this->userModel));
+            ->willReturn($this->userModel);
 
         $this->userModel
             ->expects($this->at(3))
             ->method('getUserId')
-            ->will($this->returnValue(2));
+            ->willReturn(2);
 
         $this->userModel
             ->expects($this->once())
             ->method('setRoleUserId')
             ->with(2)
-            ->will($this->returnValue($this->userModel));
+            ->willReturn($this->userModel);
 
         $this->userModel
             ->expects($this->once())
@@ -152,12 +155,12 @@ class CreateUserCommandTest extends TestCase
             ->expects($this->once())
             ->method('load')
             ->with('invalid role', 'role_name')
-            ->will($this->returnValue($this->roleModel));
+            ->willReturn($this->roleModel);
 
         $this->roleModel
             ->expects($this->once())
             ->method('getId')
-            ->will($this->returnValue(null));
+            ->willReturn(null);
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(array(
@@ -183,24 +186,24 @@ class CreateUserCommandTest extends TestCase
             ->expects($this->once())
             ->method('load')
             ->with('Development', 'role_name')
-            ->will($this->returnValue($this->roleModel));
+            ->willReturn($this->roleModel);
 
         $this->roleModel
             ->expects($this->at(1))
             ->method('getId')
-            ->will($this->returnValue(null));
+            ->willReturn(null);
 
         $this->roleModel
             ->expects($this->once())
             ->method('setName')
             ->with('Development')
-            ->will($this->returnValue($this->roleModel));
+            ->willReturn($this->roleModel);
 
         $this->roleModel
             ->expects($this->once())
             ->method('setRoleType')
             ->with('G')
-            ->will($this->returnValue($this->roleModel));
+            ->willReturn($this->roleModel);
 
         $this->roleModel
             ->expects($this->once())
@@ -209,19 +212,19 @@ class CreateUserCommandTest extends TestCase
         $this->roleModel
             ->expects($this->at(5))
             ->method('getId')
-            ->will($this->returnValue(5));
+            ->willReturn(5);
 
         $this->rulesModel
             ->expects($this->once())
             ->method('setRoleId')
             ->with(5)
-            ->will($this->returnValue($this->rulesModel));
+            ->willReturn($this->rulesModel);
 
         $this->rulesModel
             ->expects($this->once())
             ->method('setResources')
             ->with(array('all'))
-            ->will($this->returnValue($this->rulesModel));
+            ->willReturn($this->rulesModel);
 
         $this->rulesModel
             ->expects($this->once())
@@ -230,56 +233,56 @@ class CreateUserCommandTest extends TestCase
         $this->userModel
             ->expects($this->at(0))
             ->method('setData')
-            ->with(array(
+            ->with([
                 'username'  => 'aydin',
                 'firstname' => 'Aydin',
                 'lastname'  => 'Hassan',
                 'email'     => 'aydin@hotmail.co.uk',
                 'password'  => 'p4ssw0rd',
                 'is_active' => 1,
-            ))
-            ->will($this->returnValue($this->userModel));
+            ])
+            ->willReturn($this->userModel);
 
         $this->userModel
             ->expects($this->once())
             ->method('save')
-            ->will($this->returnValue($this->userModel));
+            ->willReturn($this->userModel);
 
         $this->roleModel
             ->expects($this->at(6))
             ->method('getId')
-            ->will($this->returnValue(5));
+            ->willReturn(5);
 
         $this->userModel
             ->expects($this->once(2))
             ->method('setRoleIds')
             ->with(array(5))
-            ->will($this->returnValue($this->userModel));
+            ->willReturn($this->userModel);
 
         $this->userModel
             ->expects($this->at(3))
             ->method('getUserId')
-            ->will($this->returnValue(2));
+            ->willReturn(2);
 
         $this->userModel
             ->expects($this->once())
             ->method('setRoleUserId')
             ->with(2)
-            ->will($this->returnValue($this->userModel));
+            ->willReturn($this->userModel);
 
         $this->userModel
             ->expects($this->once())
             ->method('saveRelations');
 
         $commandTester = new CommandTester($command);
-        $commandTester->execute(array(
+        $commandTester->execute([
             'command'   => $command->getName(),
             'username'  => 'aydin',
             'firstname' => 'Aydin',
             'lastname'  => 'Hassan',
             'email'     => 'aydin@hotmail.co.uk',
             'password'  => 'p4ssw0rd',
-        ));
+        ]);
 
         $this->assertContains('The role Development was automatically created', $commandTester->getDisplay());
         $this->assertContains('User aydin successfully created', $commandTester->getDisplay());

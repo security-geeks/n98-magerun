@@ -1,6 +1,49 @@
 RECENT CHANGES
 ==============
 
+2.1.0
+-----
+
+* New: Github Actions Workflow for QA (by Tom Klingenberg)
+* New: Detect correct OpenMage version in sys:info command (by Sven Reichel)
+* Add: OpenMage LTS 20.0.3 and 20.0.4 to installer (by Christian Münch)
+* Imp: Update for new standard phpstorm.meta used by the JetBrains/phpstorm-stubs library (by Francesco Boes)
+: Imp: Remove mcrypt from required PHP extension (by Simon Sprankel)
+* Fix: Typo in help (by Rico Neitzel)
+* Fix: Add scheduled_at to fix issue with Aoe_Scheduler (by Christian Münch)
+* New: Update Dependencies: Symfony, faker, composer, psysh
+
+2.0.0
+-----
+
+* New: Magento 1.9.4.2 - 1.9.4.5 (by Fabian Blechschmidt)
+* New: PHPUnit 6 compatibility (by Christian Münch)
+* New: Update Symfony, PHPCS, Twig, psy/psysh, Phing, Composer, Faker dependencies (by Christian Münch)
+* New: Remove old Magento Versions in test setup (by Christian Münch)
+* New: Remove test support for PHP <7.0 (by Christian Münch)
+* Imp: Increase default password length (by Fabian Blechschmidt)
+
+1.103.3
+-------
+
+* Fix: Disable mview related commands in Magento CE (reported by, Ig0r-M #1051)
+
+1.103.2
+-------
+
+* Imp: Change config init to Magento's reinit function (by Thomas Wiringa)
+* Fix: Cache clean won't work if database user is wrong (reported by Izzulmakin, #1046)
+* Fix: Wildcards in db:dump strip option (by Dan Wallis,#1042)
+* Fix: invalid composer package name (by Christian Münch, #1043)
+* Fix: Instances of PHP Fatal error: Uncaught ArgumentCountError (by Luke Rodgers, #1044)
+
+1.103.1
+-------
+
+* Compatibility for PHP 7.3 (by Achim Rosenhagen)
+* Adding OpenMage Magento LTS 1.9.4.x (by Sven Reichel)
+
+
 1.103.0
 -------
 

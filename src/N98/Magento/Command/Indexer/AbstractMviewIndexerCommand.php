@@ -7,11 +7,19 @@ use N98\Magento\Command\AbstractMagentoCommand;
 class AbstractMviewIndexerCommand extends AbstractMagentoCommand
 {
     /**
+     * @return bool
+     */
+    public function isEnabled()
+    {
+        return $this->getApplication()->isMagentoEnterprise();
+    }
+
+    /**
      * @return \Enterprise_Mview_Model_Resource_Metadata_Collection
      */
     public function getMetaDataCollection()
     {
-        $collection = $this->_getModel('enterprise_mview/metadata')->getCollection();
+        $collection = $this->_getModel('enterprise_mview/metadata', '\Enterprise_Mview_Model_Resource_Metadata_Collection')->getCollection();
         return $collection;
     }
 
@@ -21,7 +29,7 @@ class AbstractMviewIndexerCommand extends AbstractMagentoCommand
     protected function getIndexers()
     {
         /** @var \Enterprise_Index_Helper_Data $helper */
-        $helper = $this->_getHelper('enterprise_index');
+        $helper = $this->_getHelper('enterprise_index', '\Enterprise_Index_Helper_Data');
 
         $indexers = array();
         foreach ($helper->getIndexers(true) as $indexer) {
@@ -42,6 +50,6 @@ class AbstractMviewIndexerCommand extends AbstractMagentoCommand
      */
     protected function getMviewClient()
     {
-        return $this->_getModel('enterprise_mview/client');
+        return $this->_getModel('enterprise_mview/client', '\Enterprise_Mview_Model_Client');
     }
 }

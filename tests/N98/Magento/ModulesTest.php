@@ -36,7 +36,9 @@ class ModulesTest extends TestCase
     {
         $modules = new Modules();
 
-        $result = $modules->filterModules($this->filter());
+        $result = $modules->filterModules(
+            $this->filter()
+        );
         $this->assertInstanceOf(__NAMESPACE__ . '\Modules', $result);
         $this->assertCount(0, $result);
         $this->assertCount(0, iterator_to_array($result));
@@ -73,9 +75,9 @@ class ModulesTest extends TestCase
      */
     private function filter($option = null, $value = null)
     {
-        $defaultOptions = array('codepool' => false, 'status' => false, 'vendor' => false);
-
+        $defaultOptions = ['codepool' => false, 'status' => false, 'vendor' => false];
         $options = $defaultOptions;
+
         if (null !== $option) {
             if (!array_key_exists($option, $defaultOptions)) {
                 throw new InvalidArgumentException(sprintf('Invalid option "%s"', $option));
@@ -84,20 +86,27 @@ class ModulesTest extends TestCase
         }
 
         /** @var $input PHPUnit_Framework_MockObject_MockObject|ArrayInput */
-        $input = $this->getMock('Symfony\Component\Console\Input\ArrayInput', array('getOption'), array(), '', false);
+        $input = $this->getMockBuilder(\Symfony\Component\Console\Input\ArrayInput::class)
+            ->disableOriginalConstructor()
+            ->setMethods(['getOption'])
+            ->getMock();
+
         $i = 0;
-        foreach ($options as $option => $value) {
-            $input->expects($this->at($i++))
+        foreach ($options as $opt => $val) {
+            $input
+                ->expects($this->at($i++))
                 ->method('getOption')
-                ->with($option)
-                ->willReturn($value);
-            if (!$value) {
+                ->with($opt)
+                ->willReturn($val);
+
+            if (!$val) {
                 continue;
             }
+
             $input->expects($this->at($i++))
                 ->method('getOption')
-                ->with($option)
-                ->willReturn($value);
+                ->with($opt)
+                ->willReturn($val);
         }
 
         return $input;

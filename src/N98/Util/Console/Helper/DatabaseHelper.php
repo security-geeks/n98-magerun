@@ -281,14 +281,17 @@ class DatabaseHelper extends AbstractHelper
             }
 
             // resolve wildcards
-            if (strpos($entry, '*') !== false) {
+            if (strpos($entry, '*') !== false || strpos($entry, '?') !== false) {
                 $connection = $this->getConnection();
                 $sth = $connection->prepare(
                     'SHOW TABLES LIKE :like',
                     array(PDO::ATTR_CURSOR => PDO::CURSOR_FWDONLY)
                 );
+                $entry = str_replace('_', '\\_', $entry);
+                $entry = str_replace('*', '%', $entry);
+                $entry = str_replace('?', '_', $entry);
                 $sth->execute(
-                    array(':like' => str_replace('*', '%', $this->dbSettings['prefix'] . $entry))
+                    array(':like' => $this->dbSettings['prefix'] . $entry)
                 );
                 $rows = $sth->fetchAll();
                 foreach ($rows as $row) {
