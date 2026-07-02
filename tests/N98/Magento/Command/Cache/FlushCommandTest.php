@@ -1,25 +1,25 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Cache;
 
 use N98\Magento\Application;
 use N98\Magento\Command\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
-class FlushCommandTest extends TestCase
+final class FlushCommandTest extends TestCase
 {
     public function testExecute()
     {
         $application = $this->getApplication();
-        if ($application->getMagentoMajorVersion() == Application::MAGENTO_MAJOR_VERSION_1) {
-            $application = $this->getApplication();
-            $application->add(new FlushCommand());
-            $command = $this->getApplication()->find('cache:flush');
+        $application->add(new FlushCommand());
 
-            $commandTester = new CommandTester($command);
-            $commandTester->execute(array('command' => $command->getName()));
+        $command = $this->getApplication()->find('cache:flush');
 
-            self::assertRegExp('/Cache cleared/', $commandTester->getDisplay());
-        }
+        $commandTester = new CommandTester($command);
+        $commandTester->execute(['command' => $command->getName()]);
+
+        $this->assertMatchesRegularExpression('/Cache cleared/', $commandTester->getDisplay());
     }
 }

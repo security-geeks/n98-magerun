@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento;
 
+use InvalidArgumentException;
 use N98\Magento\Command\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -41,7 +44,6 @@ class MagerunCommandTester
     /**
      * MagerunCommandTester constructor.
      *
-     * @param TestCase $testCase
      * @param string|array $input
      */
     public function __construct(TestCase $testCase, array $input)
@@ -49,7 +51,8 @@ class MagerunCommandTester
         $this->testCase = $testCase;
 
         $testCase->assertArrayHasKey('command', $input);
-        $testCase->assertInternalType('string', $input['command']);
+        $testCase->assertIsString($input['command']);
+
         $this->commandName = $input['command'];
         $this->input = $input;
     }
@@ -85,7 +88,7 @@ class MagerunCommandTester
     private function getExecutedCommandTester()
     {
         $commandTester = $this->getCommandTester();
-        if (!isset($this->status)) {
+        if ($this->status === null) {
             $this->status = $commandTester->execute($this->input);
         }
 
@@ -97,7 +100,8 @@ class MagerunCommandTester
      */
     private function getCommandTester()
     {
-        if (isset($this->commandTester)) {
+        $command = null;
+        if ($this->commandTester !== null) {
             return $this->commandTester;
         }
 
@@ -120,12 +124,12 @@ class MagerunCommandTester
         $test->assertSame(
             $command->getName(),
             $this->commandName,
-            'Verifying that test is done against main command name'
+            'Verifying that test is done against main command name',
         );
 
         if (!$command instanceof Command) {
-            throw new \InvalidArgumentException(
-                sprintf('Command "%s" is not a console command', $this->commandName)
+            throw new InvalidArgumentException(
+                sprintf('Command "%s" is not a console command', $this->commandName),
             );
         }
 

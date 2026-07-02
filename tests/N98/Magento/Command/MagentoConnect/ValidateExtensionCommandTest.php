@@ -1,26 +1,33 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\MagentoConnect;
 
+use Mage;
 use N98\Magento\Command\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
-class ValidateExtensionCommandTest extends TestCase
+final class ValidateExtensionCommandTest extends TestCase
 {
     public function testSetup()
     {
+        $application = null;
+        $commandMock = null;
+        $commandTester = null;
+        $output = null;
         self::markTestSkipped('Skip Test - Currently are connect problems. We skip test.');
 
         $this->getApplication()->initMagento();
-        if (version_compare(\Mage::getVersion(), '1.4.2.0', '<=')) {
+        if (version_compare(Mage::getVersion(), '1.4.2.0', '<=')) {
             self::markTestSkipped('Skip Test - mage cli script does not exist.');
         }
 
         $application = $this->getApplication();
-        $commandMock = $this->getMockBuilder('N98\Magento\Command\MagentoConnect\ValidateExtensionCommand')
+        $commandMock = $this->getMockBuilder(ValidateExtensionCommand::class)
             ->setMockClassName('ValidateExtensionCommandMock')
             ->enableOriginalClone()
-            ->setMethods(array('_getDownloaderConfigPath'))
+            ->setMethods(['_getDownloaderConfigPath'])
             ->getMock();
         $application->add($commandMock);
 
@@ -30,14 +37,10 @@ class ValidateExtensionCommandTest extends TestCase
 
         $commandTester = new CommandTester($commandMock);
         $commandTester->execute(
-            array(
-                'command'           => $commandMock->getName(),
-                'package'           => 'Mage_All_Latest',
-                '--include-default' => true,
-            )
+            ['command'           => $commandMock->getName(), 'package'           => 'Mage_All_Latest', '--include-default' => true],
         );
 
         $output = $commandTester->getDisplay();
-        self::assertContains('Mage_All_Latest', $output);
+        $this->assertContains('Mage_All_Latest', $output);
     }
 }

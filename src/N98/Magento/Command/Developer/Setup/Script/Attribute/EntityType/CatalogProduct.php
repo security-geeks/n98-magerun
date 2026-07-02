@@ -1,17 +1,23 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Developer\Setup\Script\Attribute\EntityType;
 
+/**
+ * Class CatalogProduct
+ *
+ * @package N98\Magento\Command\Developer\Setup\Script\Attribute\EntityType
+ */
 class CatalogProduct extends AbstractEntityType implements EntityType
 {
     /**
      * Gets key legend for catalog product attribute
-     *
-     * @return array
+     * @return array<string, string>
      */
-    protected function _getKeyMapping()
+    protected function _getKeyMapping(): array
     {
-        return array(
+        return [
             //catalog
             'frontend_input_renderer'       => 'input_renderer',
             'is_global'                     => 'global',
@@ -35,13 +41,10 @@ class CatalogProduct extends AbstractEntityType implements EntityType
             'is_user_defined'               => 'user_defined',
             'default_value'                 => 'default',
             'is_unique'                     => 'unique',
-        );
+        ];
     }
 
-    /**
-     * @return string
-     */
-    public function generateCode()
+    public function generateCode(): string
     {
         // get a map of "real attribute properties to properties used in setup resource array
         $realToSetupKeyLegend = $this->_getKeyMapping();
@@ -49,25 +52,26 @@ class CatalogProduct extends AbstractEntityType implements EntityType
         // swap keys from above
         $data = $this->attribute->getData();
         $keysLegend = array_keys($realToSetupKeyLegend);
-        $newData = array();
+        $newData = [];
 
         foreach ($data as $key => $value) {
             if (in_array($key, $keysLegend)) {
                 $key = $realToSetupKeyLegend[$key];
             }
+
             $newData[$key] = $value;
         }
 
         // unset items from model that we don't need and would be discarded by
-        // resource script anyways
+        // resource script anyway
         unset($newData['attribute_id']);
         unset($newData['attribute_code']);
         unset($newData['entity_type_id']);
 
         // chuck a few warnings out there for things that were a little murky
         if ($newData['attribute_model']) {
-            $this->warnings[] = '<warning>WARNING, value detected in attribute_model. We\'ve never seen a value ' .
-                'there before and this script doesn\'t handle it.  Caution, etc. </warning>';
+            $this->warnings[] = "<warning>WARNING, value detected in attribute_model. We've never seen a value " .
+                "there before and this script doesn't handle it.  Caution, etc. </warning>";
         }
 
         if ($newData['is_used_for_price_rules']) {
@@ -81,12 +85,12 @@ class CatalogProduct extends AbstractEntityType implements EntityType
         //get text for script
         $arrayCode = var_export($newData, true);
 
-        //generate script using simpnle string concatenation, making
+        //generate script using simple string concatenation, making
         //a single tear fall down the cheek of a CS professor
         $script = "<?php
 \$setup = new Mage_Catalog_Model_Resource_Setup('core_setup');
 
-\$attr = $arrayCode;
+\$attr = {$arrayCode};
 \$setup->addAttribute('catalog_product', '" . $this->attribute->getAttributeCode() . "', \$attr);
             ";
 
@@ -96,11 +100,10 @@ class CatalogProduct extends AbstractEntityType implements EntityType
         $labelsScript = "
 \$attribute = Mage::getModel('eav/entity_attribute')->loadByCode('catalog_product', '"
             . $this->attribute->getAttributeCode() . "');
-\$attribute->setStoreLabels($attributeLabelsCode);
+\$attribute->setStoreLabels({$attributeLabelsCode});
 \$attribute->save();
 ";
-        $script .= $labelsScript;
 
-        return $script;
+        return $script . $labelsScript;
     }
 }

@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * this file is part of magerun
  *
@@ -8,24 +11,23 @@
 namespace N98\Util\Console\Helper;
 
 use N98\Magento\Command\TestCase;
+use Symfony\Component\Console\Helper\HelperInterface;
+use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Class IoHelperTest
  *
  * @package N98\Util\Console\Helper
  */
-class IoHelperTest extends TestCase
+final class IoHelperTest extends TestCase
 {
-    /**
-     * @test
-     */
-    public function creation()
+    public function testCreation()
     {
-        $helper = new IoHelper();
-        self::assertInstanceOf('N98\Util\Console\Helper\IoHelper', $helper);
-        self::assertInstanceOf('Symfony\Component\Console\Helper\HelperInterface', $helper);
-        self::assertNull($helper->getOutput());
+        $ioHelper = new IoHelper();
+        $this->assertInstanceOf(IoHelper::class, $ioHelper);
+        $this->assertInstanceOf(HelperInterface::class, $ioHelper);
+        $this->assertNotInstanceOf(OutputInterface::class, $ioHelper->getOutput());
 
-        self::assertSame('io', $helper->getName());
+        $this->assertSame('io', $ioHelper->getName());
     }
 }

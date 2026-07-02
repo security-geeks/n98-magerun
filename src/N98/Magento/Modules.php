@@ -1,9 +1,6 @@
 <?php
-/**
- * this file is part of magerun
- *
- * @author Tom Klingenberg <https://github.com/ktomk>
- */
+
+declare(strict_types=1);
 
 namespace N98\Magento;
 
@@ -20,42 +17,41 @@ use Traversable;
  * Magento Modules
  *
  * @package N98\Magento
+ *
+ * @author Tom Klingenberg (https://github.com/ktomk)
  */
 class Modules implements IteratorAggregate, Countable
 {
-    /**
-     * @var array
-     */
-    private $list;
+    private ?array $list;
 
-    public function __construct(array $list = null)
+    public function __construct(?array $list = null)
     {
         if (null === $list) {
-            $list = array();
+            $list = [];
         }
 
         $this->list = $list;
     }
 
-    /**
-     * @return Modules
-     */
-    public function findInstalledModules()
+    public function findInstalledModules(): Modules
     {
-        $list = array();
+        $list = [];
 
-        $modules = Mage::app()->getConfig()->getNode('modules')->asArray();
-        foreach ($modules as $moduleName => $moduleInfo) {
-            $codePool = isset($moduleInfo['codePool']) ? $moduleInfo['codePool'] : '';
-            $version = isset($moduleInfo['version']) ? $moduleInfo['version'] : '';
-            $active = isset($moduleInfo['active']) ? $moduleInfo['active'] : '';
+        $modulesNode = Mage::app()->getConfig()->getNode('modules');
+        if ($modulesNode) {
+            $modules = $modulesNode->asArray();
+            foreach ($modules as $moduleName => $moduleInfo) {
+                $codePool   = $moduleInfo['codePool'] ?? '';
+                $version    = $moduleInfo['version'] ?? '';
+                $active     = $moduleInfo['active'] ?? '';
 
-            $list[] = array(
-                'codePool' => trim($codePool),
-                'Name'     => trim($moduleName),
-                'Version'  => trim($version),
-                'Status'   => StringTyped::formatActive($active),
-            );
+                $list[] = [
+                    'codePool' => trim($codePool),
+                    'Name'     => trim($moduleName),
+                    'Version'  => trim($version),
+                    'Status'   => StringTyped::formatActive($active),
+                ];
+            }
         }
 
         return new Modules($list);
@@ -63,11 +59,8 @@ class Modules implements IteratorAggregate, Countable
 
     /**
      * Filter modules by codepool, status and vendor if such options were inputted by user
-     *
-     * @param InputInterface $input
-     * @return Modules
      */
-    public function filterModules(InputInterface $input)
+    public function filterModules(InputInterface $input): Modules
     {
         $filtered = $this->list;
 
@@ -80,7 +73,7 @@ class Modules implements IteratorAggregate, Countable
         }
 
         if ($input->getOption('vendor')) {
-            $filtered = ArrayFunctions::matrixFilterStartswith($filtered, 'Name', $input->getOption('vendor'));
+            $filtered = ArrayFunctions::matrixFilterStartsWith($filtered, 'Name', $input->getOption('vendor'));
         }
 
         return new self($filtered);
@@ -91,9 +84,9 @@ class Modules implements IteratorAggregate, Countable
     /**
      * Retrieve an external iterator
      *
-     * @return Traversable|array[]
+     * @return ArrayIterator|array[]
      */
-    public function getIterator()
+    public function getIterator(): Traversable
     {
         return new ArrayIterator($this->list);
     }
@@ -105,7 +98,7 @@ class Modules implements IteratorAggregate, Countable
      *
      * @return int The custom count as an integer.
      */
-    public function count()
+    public function count(): int
     {
         return count($this->list);
     }

@@ -1,29 +1,32 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Script\Repository;
 
-use N98\Util\Console\Helper\Table\Renderer\RendererFactory;
-use N98\Util\Console\Helper\TableHelper;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * List scripts command
+ *
+ * @package N98\Magento\Command\Script\Repository
+ */
 class ListCommand extends AbstractRepositoryCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('script:repo:list')
             ->setDescription('Lists all scripts in repository')
-            ->addOption(
-                'format',
-                null,
-                InputOption::VALUE_OPTIONAL,
-                'Output Format. One of [' . implode(',', RendererFactory::getFormats()) . ']'
-            )
+            ->addFormatOption()
         ;
+    }
 
-        $help = <<<HELP
+    public function getHelp(): string
+    {
+        return <<<HELP
 You can organize your scripts in a repository.
 Simply place a script in folder */usr/local/share/n98-magerun/scripts* or in your home dir
 in folder *<HOME>/.n98-magerun/scripts*.
@@ -35,39 +38,29 @@ The first line of the script can contain a comment (line prefixed with #) which 
 
    $ n98-magerun.phar script:repo:list
 HELP;
-        $this->setHelp($help);
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int|null|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $files = $this->getScripts();
         if (count($files) > 0) {
-            $table = array();
+            $table = [];
             foreach ($files as $file) {
-                $table[] = array(
-                    substr($file['fileinfo']->getFilename(), 0, -strlen(self::MAGERUN_EXTENSION)),
-                    $file['location'],
-                    $file['description'],
-                );
+                $table[] = [substr($file['fileinfo']->getFilename(), 0, -strlen(self::MAGERUN_EXTENSION)), $file['location'], $file['description']];
             }
         } else {
-            $table = array();
+            $table = [];
         }
 
-        if ($input->getOption('format') === null && count($table) === 0) {
+        if ($input->getOption('format') === null && $table === []) {
             $output->writeln('<info>no script file found</info>');
         }
 
-        /* @var $tableHelper TableHelper */
-        $tableHelper = $this->getHelper('table');
+        $tableHelper = $this->getTableHelper();
         $tableHelper
-            ->setHeaders(array('Script', 'Location', 'Description'))
+            ->setHeaders(['Script', 'Location', 'Description'])
             ->renderByFormat($output, $table, $input->getOption('format'));
+
+        return Command::SUCCESS;
     }
 }

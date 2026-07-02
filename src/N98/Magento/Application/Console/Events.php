@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Application\Console;
 
 final class Events
@@ -7,5 +9,5 @@ final class Events
     /**
      * @var string
      */
-    const RUN_BEFORE = 'n98-magerun.application.console.run.before';
+    public const RUN_BEFORE = 'n98-magerun.application.console.run.before';
 }

@@ -6,6 +6,8 @@
 /n98-magerun.phar.asc
 /build/output/
 /build/vendor/
+/*.phar
+composer-setup.php
 
 # Magerun stopfile
 /.n98-magerun
@@ -13,6 +15,23 @@
 # IDEs
 /.idea/
 /nbproject/
+/.vscode
 
 # Phpunit configuration
 /phpunit.xml
+
+# Act
+act.env
+act.secrets
+
+# Local Magento src
+/magento
+
+# phpDocumentor
+/docs/
+
+# php-cs-fixer cache
+/.php-cs-fixer.cache
+
+# phpunit cache
+/.phpunit.result.cache

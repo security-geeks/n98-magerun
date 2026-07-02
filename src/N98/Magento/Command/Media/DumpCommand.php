@@ -1,8 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Media;
 
+use Carbon\Carbon;
 use N98\Magento\Command\AbstractMagentoCommand;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -11,9 +15,14 @@ use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
 use ZipArchive;
 
+/**
+ * Dump media command
+ *
+ * @package N98\Magento\Command\Media
+ */
 class DumpCommand extends AbstractMagentoCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('media:dump')
@@ -23,21 +32,14 @@ class DumpCommand extends AbstractMagentoCommand
         ;
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int|null|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $commandConfig = $this->getCommandConfig();
 
         $this->detectMagento($output);
         $finder = new Finder();
         $finder
-            ->files()
-            ->followLinks(true)
+            ->files()->followLinks()
             ->in($this->getApplication()->getMagentoRootFolder() . DIRECTORY_SEPARATOR . 'media');
         if ($input->getOption('strip')) {
             $finder->exclude($commandConfig['strip']['folders']);
@@ -48,27 +50,32 @@ class DumpCommand extends AbstractMagentoCommand
             $filename = realpath($filename);
             $filename .= '/';
         }
-        if (empty($filename) || is_dir($filename)) {
-            $filename .= 'media_' . date('Ymd_his') . '.zip';
+
+        if ($filename === '' || $filename === '0' || is_dir($filename)) {
+            $filename .= 'media_' . Carbon::now()->format('Ymd_his') . '.zip';
         }
 
-        $zip = new ZipArchive();
-        $zip->open($filename, ZIPARCHIVE::CREATE);
-        $zip->addEmptyDir('media');
+        $zipArchive = new ZipArchive();
+        $zipArchive->open($filename, ZIPARCHIVE::CREATE);
+        $zipArchive->addEmptyDir('media');
+
         $lastFolder = '';
         foreach ($finder as $file) {
-            /* @var $file SplFileInfo */
+            /* @var SplFileInfo $file */
             $currentFolder = pathinfo($file->getRelativePathname(), PATHINFO_DIRNAME);
-            if ($currentFolder != $lastFolder) {
+            if ($currentFolder !== $lastFolder) {
                 $output->writeln(
-                    sprintf('<info>Compress directory:</info> <comment>media/%s</comment>', $currentFolder)
+                    sprintf('<info>Compress directory:</info> <comment>media/%s</comment>', $currentFolder),
                 );
             }
-            $zip->addFile($file->getPathname(), 'media' . DIRECTORY_SEPARATOR . $file->getRelativePathname());
+
+            $zipArchive->addFile($file->getPathname(), 'media' . DIRECTORY_SEPARATOR . $file->getRelativePathname());
 
             $lastFolder = $currentFolder;
         }
 
-        $zip->close();
+        $zipArchive->close();
+
+        return Command::SUCCESS;
     }
 }

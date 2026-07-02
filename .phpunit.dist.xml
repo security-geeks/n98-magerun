@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         backupGlobals="true"
+         bootstrap="tests/bootstrap.php"
+         backupStaticAttributes="false"
+         colors="true"
+         convertErrorsToExceptions="true"
+         convertNoticesToExceptions="true"
+         convertWarningsToExceptions="true"
+         forceCoversAnnotation="false"
+         processIsolation="false"
+         stopOnError="false"
+         stopOnFailure="false"
+         stopOnIncomplete="false"
+         stopOnSkipped="false"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.6/phpunit.xsd">
+  <php>
+      <!--
+      <env name="N98_MAGERUN_TEST_MAGENTO_ROOT" value="/opt/magento-test-environments/magento_20_0_17/" />
+      <env name="N98_MAGERUN_TEST_MAGENTO_ROOT" value="magento/" />
+      <env name="COMPOSER_VENDOR_PATH" value="magento/vendor/" />
+      -->
+      <!-- hide deprecation warnings -->
+      <ini name="error_reporting" value="E_ALL &amp; ~E_DEPRECATED &amp; ~E_USER_DEPRECATED" />
+    </php>
+  <coverage includeUncoveredFiles="true">
+    <include>
+      <directory suffix=".php">./src</directory>
+    </include>
+    <exclude>
+      <file>src/bootstrap.php</file>
+    </exclude>
+  </coverage>
+  <testsuites>
+    <testsuite name="n98-magerun-tests">
+      <directory>./tests</directory>
+    </testsuite>
+  </testsuites>
+</phpunit>

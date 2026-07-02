@@ -1,15 +1,25 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Developer;
 
+use Mage;
+use Mage_Core_Model_Config;
 use N98\Magento\Command\AbstractMagentoCommand;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * Class lookup command
+ *
+ * @package N98\Magento\Command\Developer
+ */
 class ClassLookupCommand extends AbstractMagentoCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('dev:class:lookup')
@@ -19,38 +29,31 @@ class ClassLookupCommand extends AbstractMagentoCommand
         ;
     }
 
-    /**
-     * @return \Mage_Core_Model_Config
-     */
-    protected function _getConfig()
+    protected function _getConfig(): Mage_Core_Model_Config
     {
-        return \Mage::getConfig();
+        return Mage::getConfig();
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectMagento($output, true);
         if (!$this->initMagento()) {
-            return;
+            return Command::INVALID;
         }
 
         $resolved = $this->_getConfig()->getGroupedClassName(
             $input->getArgument('type'),
-            $input->getArgument('name')
+            $input->getArgument('name'),
         );
         $output->writeln(
-            ucfirst($input->getArgument('type')) . ' <comment>' . $input->getArgument('name') . "</comment> " .
-            "resolves to <comment>" . $resolved . '</comment>'
+            ucfirst($input->getArgument('type')) . ' <comment>' . $input->getArgument('name') . '</comment> ' .
+            'resolves to <comment>' . $resolved . '</comment>',
         );
 
         if (!class_exists('\\' . $resolved)) {
             $output->writeln('<info>Note:</info> Class <comment>' . $resolved . '</comment> does not exist!');
         }
+
+        return Command::SUCCESS;
     }
 }

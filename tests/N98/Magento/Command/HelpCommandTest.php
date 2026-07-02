@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command;
 
 use Symfony\Component\Console\Tester\CommandTester;
 
-class HelpCommandTest extends TestCase
+final class HelpCommandTest extends TestCase
 {
     public function testExecute()
     {
@@ -12,11 +14,9 @@ class HelpCommandTest extends TestCase
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
-                'command' => 'help',
-            )
+            ['command' => 'help'],
         );
 
-        self::assertContains('The help command displays help for a given command', $commandTester->getDisplay());
+        $this->assertStringContainsString('The help command displays help for a given command', $commandTester->getDisplay());
     }
 }

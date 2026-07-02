@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /*
  * this file is part of magerun
  *
@@ -7,6 +10,8 @@
 
 namespace N98\Magento\Application;
 
+use RuntimeException;
+use InvalidArgumentException;
 use N98\Magento\Command\TestCase;
 
 /**
@@ -15,51 +20,40 @@ use N98\Magento\Command\TestCase;
  * @covers  N98\Magento\Application\ConfigFile
  * @package N98\Magento\Application
  */
-class ConfigFileTest extends TestCase
+final class ConfigFileTest extends TestCase
 {
-    /**
-     * @test
-     */
-    public function creation()
+    public function testCreation()
     {
         $configFile = new ConfigFile();
-        self::assertInstanceOf('\N98\Magento\Application\ConfigFile', $configFile);
+        $this->assertInstanceOf(ConfigFile::class, $configFile);
 
         $configFile = ConfigFile::createFromFile(__FILE__);
-        self::assertInstanceOf('\N98\Magento\Application\ConfigFile', $configFile);
+        $this->assertInstanceOf(ConfigFile::class, $configFile);
     }
 
-    /**
-     * @test
-     */
-    public function applyVariables()
+    public function testApplyVariables()
     {
         $configFile = new ConfigFile();
         $configFile->loadFile('data://,- %root%');
-        $configFile->applyVariables("root-folder");
+        $configFile->applyVariables('root-folder');
 
-        self::assertSame(array('root-folder'), $configFile->toArray());
+        $this->assertSame(['root-folder'], $configFile->toArray());
     }
 
-    /**
-     * @test
-     */
-    public function mergeArray()
+    public function testMergeArray()
     {
         $configFile = new ConfigFile();
         $configFile->loadFile('data://,- bar');
-        $result = $configFile->mergeArray(array('foo'));
 
-        self::assertSame(array('foo', 'bar'), $result);
+        $result = $configFile->mergeArray(['foo']);
+
+        $this->assertSame(['foo', 'bar'], $result);
     }
 
-    /**
-     * @test
-     */
-    public function parseEmptyFile()
+    public function testParseEmptyFile()
     {
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Failed to parse config-file \'data://,\'');
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("Failed to parse config-file 'data://,'");
         $configFile = new ConfigFile();
         $configFile->loadFile('data://,');
         $this->addToAssertionCount(1);
@@ -67,12 +61,9 @@ class ConfigFileTest extends TestCase
         self::fail('An expected exception has not been thrown.');
     }
 
-    /**
-     * @test
-     */
-    public function invalidFileThrowsException()
+    public function testInvalidFileThrowsException()
     {
-        $this->expectException(\InvalidArgumentException::class);
-        @ConfigFile::createFromFile(":");
+        $this->expectException(InvalidArgumentException::class);
+        @ConfigFile::createFromFile(':');
     }
 }

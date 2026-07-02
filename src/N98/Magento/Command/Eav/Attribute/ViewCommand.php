@@ -1,44 +1,42 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Eav\Attribute;
 
 use InvalidArgumentException;
+use Mage;
+use Mage_Core_Exception;
+use Mage_Eav_Model_Config;
+use Mage_Eav_Model_Entity_Attribute_Abstract;
 use N98\Magento\Command\AbstractMagentoCommand;
-use N98\Util\Console\Helper\Table\Renderer\RendererFactory;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * View EAV attribute command
+ *
+ * @package N98\Magento\Command\Eav\Attribute
+ */
 class ViewCommand extends AbstractMagentoCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('eav:attribute:view')
             ->addArgument('entityType', InputArgument::REQUIRED, 'Entity Type Code like catalog_product')
             ->addArgument('attributeCode', InputArgument::REQUIRED, 'Attribute Code')
             ->setDescription('View informations about an EAV attribute')
-            ->addOption(
-                'format',
-                null,
-                InputOption::VALUE_OPTIONAL,
-                'Output Format. One of [' . implode(',', RendererFactory::getFormats()) . ']'
-            );
+            ->addFormatOption();
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int|void
-     * @throws InvalidArgumentException
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectMagento($output);
         if (!$this->initMagento()) {
-            return;
+            return Command::INVALID;
         }
 
         $entityType = $input->getArgument('entityType');
@@ -49,50 +47,60 @@ class ViewCommand extends AbstractMagentoCommand
             throw new InvalidArgumentException('Attribute was not found.');
         }
 
-        $table = array(
-            array('ID', $attribute->getId()),
-            array('Code', $attribute->getName()),
-            array('Attribute-Set-ID', $attribute->getAttributeSetId()),
-            array('Visible-On-Front', $attribute->getIsVisibleOnFront() ? 'yes' : 'no'),
-            array('Attribute-Model', $attribute->getAttributeModel() ? $attribute->getAttributeModel() : ''),
-            array('Backend-Model', $attribute->getBackendModel() ? $attribute->getBackendModel() : ''),
-            array('Backend-Table', $attribute->getBackendTable() ? $attribute->getBackendTable() : ''),
-            array('Backend-Type', $attribute->getBackendType() ? $attribute->getBackendType() : ''),
-            array('Source-Model', $attribute->getSourceModel() ? $attribute->getSourceModel() : ''),
-            array('Cache-ID-Tags', $attribute->getCacheIdTags() ? implode(',', $attribute->getCacheIdTags()) : ''),
-            array('Cache-Tags', $attribute->getCacheTags() ? implode(',', $attribute->getCacheTags()) : ''),
-            array('Default-Value', $attribute->getDefaultValue() ? $attribute->getDefaultValue() : ''),
-            array(
-                'Flat-Columns',
-                $attribute->getFlatColumns() ? implode(',', array_keys($attribute->getFlatColumns())) : '',
-            ),
-            array('Flat-Indexes', $attribute->getFlatIndexes() ? implode(',', $attribute->getFlatIndexes()) : ''),
-        );
+        /** @var array|false $cacheIdTags */
+        $cacheIdTags    = $attribute->getCacheIdTags();
+        /** @var array|false $cacheTags */
+        $cacheTags      = $attribute->getCacheTags();
+        $flatColumns    = $attribute->getFlatColumns();
 
-        if ($attribute->getFrontend()) {
-            $table[] = array('Frontend-Label', $attribute->getFrontend()->getLabel());
-            $table[] = array('Frontend-Class', trim($attribute->getFrontend()->getClass()));
-            $table[] = array('Frontend-Input', trim($attribute->getFrontend()->getInputType()));
-            $table[] = array(
-                'Frontend-Input-Renderer-Class',
-                trim($attribute->getFrontend()->getInputRendererClass()),
-            );
+        $table = [
+            ['ID', $attribute->getId()],
+            ['Code', $attribute->getName()],
+            ['Attribute-Set-ID', $attribute->getAttributeSetId()],
+            ['Visible-On-Front', $attribute->getIsVisibleOnFront() ? 'yes' : 'no'],
+            ['Attribute-Model', $attribute->getAttributeModel() ?: ''],
+            ['Backend-Model', $attribute->getBackendModel() ?: ''],
+            ['Backend-Table', $attribute->getBackendTable() ?: ''],
+            ['Backend-Type', $attribute->getBackendType() ?: ''],
+            ['Source-Model', $attribute->getSourceModel() ?: ''],
+            ['Cache-ID-Tags', $cacheIdTags ? implode(',', $cacheIdTags) : ''],
+            ['Cache-Tags', $cacheTags ? implode(',', $cacheTags) : ''],
+            ['Default-Value', $attribute->getDefaultValue() ?: ''],
+            ['Flat-Columns', $flatColumns ? implode(',', array_keys($flatColumns)) : ''],
+        ];
+
+        $flatIndexes = $attribute->getFlatIndexes() ? $attribute->getFlatIndexes() : '';
+        if ($flatIndexes) {
+            $key = array_key_first($flatIndexes);
+            $flatIndexes = implode(',', $flatIndexes[$key]['fields']);
+            $table[] = ['Flat-Indexes', $key . ' - ' . $flatIndexes];
+        } else {
+            $table[] = ['Flat-Indexes', ''];
         }
 
-        $this
-            ->getHelper('table')
-            ->setHeaders(array('Type', 'Value'))
+        if ($attribute->getFrontend()) {
+            $table[] = ['Frontend-Label', $attribute->getFrontend()->getLabel()];
+            $table[] = ['Frontend-Class', trim($attribute->getFrontend()->getClass())];
+            $table[] = ['Frontend-Input', trim($attribute->getFrontend()->getInputType())];
+            $table[] = ['Frontend-Input-Renderer-Class', trim((string) $attribute->getFrontend()->getInputRendererClass())];
+        }
+
+        $tableHelper = $this->getTableHelper();
+        $tableHelper
+            ->setHeaders(['Type', 'Value'])
             ->renderByFormat($output, $table, $input->getOption('format'));
+
+        return Command::SUCCESS;
     }
 
     /**
-     * @param string $entityType
-     * @param string $attributeCode
-     *
-     * @return \Mage_Eav_Model_Entity_Attribute_Abstract|false
+     * @return Mage_Eav_Model_Entity_Attribute_Abstract|false
+     * @throws Mage_Core_Exception
      */
-    protected function getAttribute($entityType, $attributeCode)
+    protected function getAttribute(string $entityType, string $attributeCode)
     {
-        return \Mage::getModel('eav/config')->getAttribute($entityType, $attributeCode);
+        /** @var Mage_Eav_Model_Config $model */
+        $model = Mage::getModel('eav/config');
+        return $model->getAttribute($entityType, $attributeCode);
     }
 }

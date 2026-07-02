@@ -1,22 +1,29 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\System\Cron;
 
+use Mage;
+use Mage_Core_Model_Date;
+use Mage_Core_Model_Store;
+use Mage_Cron_Model_Schedule;
 use N98\Magento\Command\AbstractMagentoCommand;
-use N98\Util\Console\Helper\Table\Renderer\RendererFactory;
-use N98\Util\Console\Helper\TableHelper;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * List cronjob history command
+ *
+ * @package N98\Magento\Command\System\Cron
+ */
 class HistoryCommand extends AbstractMagentoCommand
 {
-    /**
-     * @var array
-     */
-    protected $infos;
+    protected array $infos;
 
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('sys:cron:history')
@@ -25,56 +32,54 @@ class HistoryCommand extends AbstractMagentoCommand
                 'timezone',
                 null,
                 InputOption::VALUE_OPTIONAL,
-                'Timezone to show finished at in'
+                'Timezone to show finished at in',
             )
-            ->addOption(
-                'format',
-                null,
-                InputOption::VALUE_OPTIONAL,
-                'Output Format. One of [' . implode(',', RendererFactory::getFormats()) . ']'
-            )
+            ->addFormatOption()
         ;
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $this->detectMagento($output, true);
+        $this->detectMagento($output);
 
         if ($input->getOption('format') === null) {
             $this->writeSection($output, 'Last executed jobs');
         }
+
         $this->initMagento();
 
-        $timezone = $input->getOption('timezone')
-            ? $input->getOption('timezone') : \Mage::app()->getStore()->getConfig('general/locale/timezone');
+        /** @var Mage_Core_Model_Store $store */
+        $store = Mage::app()->getStore();
 
+        $timezone = $input->getOption('timezone') ?: $store->getConfig('general/locale/timezone');
         $output->writeln('<info>Times shown in <comment>' . $timezone . '</comment></info>');
 
-        $date = \Mage::getSingleton('core/date');
+        /** @var Mage_Core_Model_Date $date */
+        $date = Mage::getSingleton('core/date');
         $offset = $date->calculateOffset($timezone);
-        $collection = \Mage::getModel('cron/schedule')->getCollection();
-        $collection
-            ->addFieldToFilter('status', array('neq' => \Mage_Cron_Model_Schedule::STATUS_PENDING))
-            ->addOrder('finished_at', \Varien_Data_Collection_Db::SORT_ORDER_DESC);
 
-        $table = array();
+        /** @var Mage_Cron_Model_Schedule $model */
+        $model = Mage::getModel('cron/schedule');
+        $collection = $model->getCollection();
+        $collection
+            ->addFieldToFilter('status', ['neq' => Mage_Cron_Model_Schedule::STATUS_PENDING])
+            ->addOrder('finished_at');
+
+        $table = [];
+        /** @var Mage_Cron_Model_Schedule $job */
         foreach ($collection as $job) {
-            $table[] = array(
+            $table[] = [
                 $job->getJobCode(),
                 $job->getStatus(),
                 $job->getFinishedAt() ? $date->gmtDate(null, $date->timestamp($job->getFinishedAt()) + $offset) : '',
-            );
+            ];
         }
-        /* @var $tableHelper TableHelper */
-        $tableHelper = $this->getHelper('table');
+
+        $tableHelper = $this->getTableHelper();
         $tableHelper
-            ->setHeaders(array('Job', 'Status', 'Finished'))
+            ->setHeaders(['Job', 'Status', 'Finished'])
             ->renderByFormat($output, $table, $input->getOption('format'));
+
+        return Command::SUCCESS;
     }
 }

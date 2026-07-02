@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Developer\Module\Rewrite;
 
 use N98\Magento\Command\TestCase;
@@ -11,12 +13,13 @@ use Symfony\Component\Console\Tester\CommandTester;
  * @TODO Check with simulated conflict
  * @package N98\Magento\Command\Developer\Module\Rewrite
  */
-class ConflictsCommandTest extends TestCase
+final class ConflictsCommandTest extends TestCase
 {
     public function testExecute()
     {
         $application = $this->getApplication();
         $application->add(new ConflictsCommand());
+
         $command = $this->getApplication()->find('dev:module:rewrite:conflicts');
 
         /**
@@ -24,25 +27,20 @@ class ConflictsCommandTest extends TestCase
          */
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
-                'command' => $command->getName(),
-            )
+            ['command' => $command->getName()],
         );
-        self::assertContains('No rewrite conflicts were found', $commandTester->getDisplay());
+        $this->assertStringContainsString('No rewrite conflicts were found', $commandTester->getDisplay());
 
         /**
          * Junit Log without any output
          */
         $commandTester = new CommandTester($command);
         $result = $commandTester->execute(
-            array(
-                'command'     => $command->getName(),
-                '--log-junit' => '_output.xml',
-            )
+            ['command'     => $command->getName(), '--log-junit' => '_output.xml'],
         );
-        self::assertEquals(0, $result);
-        self::assertEquals('', $commandTester->getDisplay());
-        self::assertFileExists('_output.xml');
+        $this->assertSame(0, $result);
+        $this->assertSame('', $commandTester->getDisplay());
+        $this->assertFileExists('_output.xml');
         @unlink('_output.xml');
     }
 
@@ -51,19 +49,12 @@ class ConflictsCommandTest extends TestCase
      */
     public function testExecuteConflict()
     {
-        $rewrites = array(
-            'blocks' => array(
-                'n98/mock_conflict' => array(
-                    'Mage_Customer_Block_Account',
-                    'Mage_Tag_Block_All',
-                ),
-            ),
-        );
-        $command = $this->getCommandWithMockLoadRewrites($rewrites);
-        $commandTester = new CommandTester($command);
-        $result = $commandTester->execute(array('command' => $command->getName()));
-        self::assertNotEquals(0, $result);
-        self::assertContains('1 conflict was found', $commandTester->getDisplay());
+        $rewrites = ['blocks' => ['n98/mock_conflict' => ['Mage_Customer_Block_Account', 'Mage_Tag_Block_All']]];
+        $conflictsCommand = $this->getCommandWithMockLoadRewrites($rewrites);
+        $commandTester = new CommandTester($conflictsCommand);
+        $result = $commandTester->execute(['command' => $conflictsCommand->getName()]);
+        $this->assertNotSame(0, $result);
+        $this->assertStringContainsString('1 conflict was found', $commandTester->getDisplay());
     }
 
     /**
@@ -73,34 +64,27 @@ class ConflictsCommandTest extends TestCase
      */
     public function testExecuteConflictFalsePositive()
     {
-        $rewrites = array(
-            'blocks' => array(
-                'n98/mock_conflict' => array(
-                    'Mage_Catalog_Block_Product_Price',
-                    'Mage_Bundle_Block_Catalog_Product_Price',
-                ),
-            ),
-        );
-        $command = $this->getCommandWithMockLoadRewrites($rewrites);
-        $commandTester = new CommandTester($command);
-        $result = $commandTester->execute(array('command' => $command->getName()));
-        self::assertEquals(0, $result);
-        self::assertContains('No rewrite conflicts were found', $commandTester->getDisplay());
+        $rewrites = ['blocks' => ['n98/mock_conflict' => ['Mage_Catalog_Block_Product_Price', 'Mage_Bundle_Block_Catalog_Product_Price']]];
+        $conflictsCommand = $this->getCommandWithMockLoadRewrites($rewrites);
+        $commandTester = new CommandTester($conflictsCommand);
+        $result = $commandTester->execute(['command' => $conflictsCommand->getName()]);
+        $this->assertSame(0, $result);
+        $this->assertStringContainsString('No rewrite conflicts were found', $commandTester->getDisplay());
     }
 
     /**
      * Mock the ConflictsCommand and change the return value of loadRewrites()
      * to the given argument
      *
-     * @param  array            $return
      * @return ConflictsCommand
+     * @param array<string, array<string, string[]>> $return
      */
     private function getCommandWithMockLoadRewrites(array $return)
     {
-        $commandMock = $this->getMockBuilder('N98\Magento\Command\Developer\Module\Rewrite\ConflictsCommand')
+        $commandMock = $this->getMockBuilder(ConflictsCommand::class)
             ->setMockClassName('ConflictsCommandMock')
             ->enableOriginalClone()
-            ->setMethods(array('loadRewrites'))
+            ->onlyMethods(['loadRewrites'])
             ->getMock();
         $this->getApplication()->add($commandMock);
         $commandMock

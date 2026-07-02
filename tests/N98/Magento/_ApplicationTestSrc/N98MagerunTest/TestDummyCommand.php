@@ -1,11 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98MagerunTest;
 
+use N98\Magento\Command\AbstractMagentoCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class TestDummyCommand extends \N98\Magento\Command\AbstractMagentoCommand
+class TestDummyCommand extends AbstractMagentoCommand
 {
     protected function configure()
     {
@@ -14,13 +17,14 @@ class TestDummyCommand extends \N98\Magento\Command\AbstractMagentoCommand
             ->setDescription('Dummy command');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectMagento($output);
         if (!$this->initMagento()) {
-            return;
+            return 0;
         }
 
         $output->writeln('dummy');
+        return 0;
     }
 }

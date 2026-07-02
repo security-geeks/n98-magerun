@@ -1,14 +1,23 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Database;
 
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\ConfirmationQuestion;
 
+/**
+ * Drop database command
+ *
+ * @package N98\Magento\Command\Database
+ */
 class DropCommand extends AbstractDatabaseCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('db:drop')
@@ -16,45 +25,43 @@ class DropCommand extends AbstractDatabaseCommand
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Force')
             ->setDescription('Drop current database')
         ;
+    }
 
-        $help = <<<HELP
+    public function getHelp(): string
+    {
+        return <<<HELP
 The command prompts before dropping the database. If --force option is specified it
 directly drops the database.
 The configured user in app/etc/local.xml must have "DROP" privileges.
 HELP;
-        $this->setHelp($help);
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectDbSettings($output);
 
-        $dialog = $this->getHelper('dialog');
-        $dbHelper = $this->getHelper('database');
+        $questionHelper = $this->getQuestionHelper();
+        $databaseHelper = $this->getDatabaseHelper();
 
         if ($input->getOption('force')) {
             $shouldDrop = true;
         } else {
-            $shouldDrop = $dialog->askConfirmation(
+            $shouldDrop = $questionHelper->ask(
+                $input,
                 $output,
-                '<question>Really drop database ' . $this->dbSettings['dbname'] .
-                ' ?</question> <comment>[n]</comment>: ',
-                false
+                new ConfirmationQuestion('<question>Really drop database ' . $this->dbSettings['dbname'] .
+                    ' ?</question> <comment>[n]</comment>: ', false),
             );
         }
 
         if ($shouldDrop) {
             if ($input->getOption('tables')) {
-                $dbHelper->dropTables($output);
+                $databaseHelper->dropTables($output);
             } else {
-                $dbHelper->dropDatabase($output);
+                $databaseHelper->dropDatabase($output);
             }
         }
+
+        return Command::SUCCESS;
     }
 }

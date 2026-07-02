@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Util\Console\Helper;
 
 use Exception;
@@ -10,16 +12,14 @@ use Symfony\Component\Console\Helper\Helper;
 
 /**
  * Helper to render twig templates
+ *
+ * @package N98\Util\Console\Helper
  */
 class TwigHelper extends Helper
 {
-    /**
-     * @var \N98\Util\Template\Twig
-     */
-    protected $twig;
+    protected Twig $twig;
 
     /**
-     * @param Config $config
      * @throws RuntimeException
      */
     public function __construct(Config $config)
@@ -28,32 +28,23 @@ class TwigHelper extends Helper
 
         try {
             $this->twig = new Twig($baseDirs);
-        } catch (Exception $e) {
-            throw new RuntimeException($e->getMessage(), 0, $e);
+        } catch (Exception $exception) {
+            throw new RuntimeException($exception->getMessage(), 0, $exception);
         }
     }
 
     /**
      * Renders a twig template file
-     *
-     * @param string $template
-     * @param array $variables
-     * @return mixed
      */
-    public function render($template, $variables = array())
+    public function render(string $template, array $variables = []): string
     {
         return $this->twig->render($template, $variables);
     }
 
     /**
      * Renders a twig string
-     *
-     * @param       $string
-     * @param array $variables
-     *
-     * @return string
      */
-    public function renderString($string, $variables = array())
+    public function renderString(string $string, array $variables = []): string
     {
         return $this->twig->renderString($string, $variables);
     }
@@ -61,33 +52,35 @@ class TwigHelper extends Helper
     /**
      * @inheritdoc
      */
-    public function getName()
+    public function getName(): string
     {
         return 'twig';
     }
 
     /**
-     * @param Config $config
-     * @return array
+     * @return string[]
      */
-    private function getBaseDirsFromConfig(Config $config)
+    private function getBaseDirsFromConfig(Config $config): array
     {
         $baseDir = __DIR__ . '/../../../../..'; # root of project source tree
 
-        $baseDirs = array();
+        $baseDirs = [];
 
-        $dirs = array_reverse($config->getConfig(array('twig', 'baseDirs')));
+        $dirs = array_reverse($config->getConfig(['twig', 'baseDirs']));
 
         foreach ($dirs as $dir) {
             if (!is_string($dir)) {
                 continue;
             }
+
             if (2 > strlen($dir)) {
                 continue;
             }
+
             if ('./' === substr($dir, 0, 2)) {
                 $dir = $baseDir . substr($dir, 1);
             }
+
             $baseDirs[] = $dir;
         }
 

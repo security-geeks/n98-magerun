@@ -1,23 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Cms\Block;
 
+use Mage_Cms_Model_Block;
 use N98\Magento\Command\AbstractMagentoCommand;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * CMS Block ToggleCommand
+ * Toggle CMS block command
  *
  * @package N98\Magento\Command\Cms\Block
  */
 class ToggleCommand extends AbstractMagentoCommand
 {
-    /**
-     * Configure command
-     */
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('cms:block:toggle')
@@ -28,44 +29,42 @@ class ToggleCommand extends AbstractMagentoCommand
 
     /**
      * Get an instance of cms/block
-     *
-     * @return \Mage_Cms_Model_Block
      */
-    protected function _getBlockModel()
+    protected function _getBlockModel(): Mage_Cms_Model_Block
     {
-        return $this->_getModel('cms/block', '\Mage_Cms_Model_Block');
+        /** @var Mage_Cms_Model_Block $mageCoreModelAbstract */
+        $mageCoreModelAbstract = $this->_getModel('cms/block');
+        return $mageCoreModelAbstract;
     }
 
-    /**
-     * Execute the command
-     *
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int|null|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectMagento($output, true);
         if (!$this->initMagento()) {
-            return;
+            return Command::FAILURE;
         }
+
+        /** @var string $blockId */
         $blockId = $input->getArgument('block_id');
         if (is_numeric($blockId)) {
             $block = $this->_getBlockModel()->load($blockId);
         } else {
             $block = $this->_getBlockModel()->load($blockId, 'identifier');
         }
+
         if (!$block->getId()) {
-            return $output->writeln('<error>Block was not found</error>');
+            return (int) $output->writeln('<error>Block was not found</error>');
         }
+
         $newStatus = !$block->getIsActive();
         $block
-            ->setIsActive($newStatus)
+            ->setIsActive((int) $newStatus)
             ->save();
         $output->writeln(sprintf(
             '<comment>Block</comment> <info>%s</info>',
-            $newStatus ? 'enabled' : 'disabled'
+            $newStatus ? 'enabled' : 'disabled',
         ));
+
+        return Command::SUCCESS;
     }
 }

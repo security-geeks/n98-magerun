@@ -1,49 +1,50 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Config;
 
 use InvalidArgumentException;
+use Mage;
+use Mage_Core_Exception;
+use Mage_Core_Helper_Data;
+use Mage_Core_Model_Config;
+use Mage_Core_Model_Config_Data;
+use Mage_Core_Model_Encryption;
 use N98\Magento\Command\AbstractMagentoCommand;
 
+/**
+ * Class AbstractConfigCommand
+ *
+ * @package N98\Magento\Command\Config
+ */
 abstract class AbstractConfigCommand extends AbstractMagentoCommand
 {
-    const DISPLAY_NULL_UNKNOWN_VALUE = "NULL (NULL/\"unknown\" value)";
+    public const DISPLAY_NULL_UNKNOWN_VALUE = 'NULL (NULL/"unknown" value)';
 
     /**
-     * @var array strings of configuration scopes
+     * @var string[] strings of configuration scopes
      */
-    protected $_scopes = array(
-        'default',
-        'websites',
-        'stores',
-    );
+    protected array $_scopes = ['default', 'websites', 'stores'];
 
-    /**
-     * @return \Mage_Core_Model_Encryption
-     */
-    protected function getEncryptionModel()
+    protected function getEncryptionModel(): Mage_Core_Model_Encryption
     {
-        if ($this->_magentoMajorVersion == self::MAGENTO_MAJOR_VERSION_2) {
-            // @TODO Magento 2 support
-        } else {
-            return \Mage::helper('core')->getEncryptor();
-        }
+        /** @var Mage_Core_Helper_Data $helper */
+        $helper = Mage::helper('core');
+        return $helper->getEncryptor();
+    }
+
+    protected function _getConfigDataModel(): Mage_Core_Model_Config_Data
+    {
+        /** @var Mage_Core_Model_Config_Data $mageCoreModelAbstract */
+        $mageCoreModelAbstract = $this->_getModel('core/config_data');
+        return $mageCoreModelAbstract;
     }
 
     /**
-     * @return \Mage_Core_Model_Abstract
+     * @param string|false $encryptionType
      */
-    protected function _getConfigDataModel()
-    {
-        return $this->_getModel('core/config_data', 'Mage_Core_Model_Config_Data');
-    }
-
-    /**
-     * @param string $value
-     * @param string $encryptionType
-     * @return string
-     */
-    protected function _formatValue($value, $encryptionType)
+    protected function _formatValue(?string $value, $encryptionType): ?string
     {
         if ($value === null) {
             $formatted = $value;
@@ -58,16 +59,11 @@ abstract class AbstractConfigCommand extends AbstractMagentoCommand
         return $formatted;
     }
 
-    /**
-     * @param string $scope
-     *
-     * @return string
-     */
-    protected function _validateScopeParam($scope)
+    protected function _validateScopeParam(string $scope): string
     {
         if (!in_array($scope, $this->_scopes)) {
             throw new InvalidArgumentException(
-                sprintf('Invalid scope parameter, must be one of: %s.', implode(', ', $this->_scopes))
+                sprintf('Invalid scope parameter, must be one of: %s.', implode(', ', $this->_scopes)),
             );
         }
 
@@ -75,40 +71,37 @@ abstract class AbstractConfigCommand extends AbstractMagentoCommand
     }
 
     /**
-     * @param string $scope
-     * @param string $scopeId
-     * @param boolean $allowZeroScope
-     *
-     * @return string non-negative integer number
+     * @return string|int|null non-negative integer number
+     * @throws Mage_Core_Exception
      */
-    protected function _convertScopeIdParam($scope, $scopeId, $allowZeroScope = false)
+    protected function _convertScopeIdParam(string $scope, string $scopeId, bool $allowZeroScope = false)
     {
         if ($scope === 'default') {
-            if ("$scopeId" !== "0") {
+            if ($scopeId !== '0') {
                 throw new InvalidArgumentException(
-                    sprintf("Invalid scope ID %d in scope '%s', must be 0", $scopeId, $scope)
+                    sprintf("Invalid scope ID %d in scope '%s', must be 0", $scopeId, $scope),
                 );
             }
 
             return $scopeId;
         }
 
-        if ($scope == 'websites' && !is_numeric($scopeId)) {
-            $website = \Mage::app()->getWebsite($scopeId);
+        if ($scope === 'websites' && !is_numeric($scopeId)) {
+            $website = Mage::app()->getWebsite($scopeId);
             if (!$website) {
                 throw new InvalidArgumentException(
-                    sprintf("Invalid scope parameter, website '%s' does not exist.", $scopeId)
+                    sprintf("Invalid scope parameter, website '%s' does not exist.", $scopeId),
                 );
             }
 
             return $website->getId();
         }
 
-        if ($scope == 'stores' && !is_numeric($scopeId)) {
-            $store = \Mage::app()->getStore($scopeId);
+        if ($scope === 'stores' && !is_numeric($scopeId)) {
+            $store = Mage::app()->getStore($scopeId);
             if (!$store) {
                 throw new InvalidArgumentException(
-                    sprintf("Invalid scope parameter. store '%s' does not exist.", $scopeId)
+                    sprintf("Invalid scope parameter. store '%s' does not exist.", $scopeId),
                 );
             }
 
@@ -117,40 +110,37 @@ abstract class AbstractConfigCommand extends AbstractMagentoCommand
 
         $this->invalidScopeId(
             $scopeId !== (string) (int) $scopeId,
-            "Invalid scope parameter, %s is not an integer value",
-            $scopeId
+            'Invalid scope parameter, %s is not an integer value',
+            $scopeId,
         );
 
         $this->invalidScopeId(
-            0 - (bool) $allowZeroScope >= (int) $scopeId,
-            "Invalid scope parameter, %s is not a positive integer value",
-            $scopeId
+            0 - $allowZeroScope >= (int) $scopeId,
+            'Invalid scope parameter, %s is not a positive integer value',
+            $scopeId,
         );
 
         return $scopeId;
     }
 
     /**
-     * @param boolean $condition
-     * @param string $mask
-     * @param string $scopeId
+     * @param mixed $condition
      */
-    private function invalidScopeId($condition, $mask, $scopeId)
+    private function invalidScopeId($condition, string $mask, string $scopeId): void
     {
         if (!$condition) {
             return;
         }
 
         throw new InvalidArgumentException(
-            sprintf($mask, var_export($scopeId, true))
+            sprintf($mask, var_export($scopeId, true)),
         );
     }
 
-    /**
-     * @return \Mage_Core_Model_Config
-     */
-    protected function _getConfigModel()
+    protected function _getConfigModel(): Mage_Core_Model_Config
     {
-        return $this->_getModel('core/config', 'Mage_Core_Model_Config');
+        /** @var Mage_Core_Model_Config $mageCoreModelAbstract */
+        $mageCoreModelAbstract = Mage::getModel('core/config');
+        return $mageCoreModelAbstract;
     }
 }

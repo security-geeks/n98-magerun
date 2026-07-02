@@ -1,86 +1,81 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Customer;
 
-use N98\Util\Console\Helper\Table\Renderer\RendererFactory;
-use N98\Util\Console\Helper\TableHelper;
+use Mage_Customer_Model_Customer;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * List customer command
+ *
+ * @package N98\Magento\Command\Customer
+ */
 class ListCommand extends AbstractCustomerCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('customer:list')
             ->addArgument('search', InputArgument::OPTIONAL, 'Search query')
-            ->addOption(
-                'format',
-                null,
-                InputOption::VALUE_OPTIONAL,
-                'Output Format. One of [' . implode(',', RendererFactory::getFormats()) . ']'
-            )
+            ->addFormatOption()
             ->setDescription('Lists customers')
         ;
+    }
 
-        $help = <<<HELP
+    public function getHelp(): string
+    {
+        return <<<HELP
 List customers. The output is limited to 1000 (can be changed by overriding config).
 If search parameter is given the customers are filtered (searchs in firstname, lastname and email).
 HELP;
-        $this->setHelp($help);
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectMagento($output, true);
         if (!$this->initMagento()) {
-            return;
+            return Command::INVALID;
         }
 
         $config = $this->getCommandConfig();
 
-        $collection = $this->getCustomerCollection();
-        $collection->addAttributeToSelect(array('entity_id', 'email', 'firstname', 'lastname', 'website_id'));
+        $mageCustomerModelResourceCustomerCollection = $this->getCustomerCollection();
+        $mageCustomerModelResourceCustomerCollection->addAttributeToSelect(['entity_id', 'email', 'firstname', 'lastname', 'website_id']);
 
         if ($input->getArgument('search')) {
-            $collection->addAttributeToFilter(
-                array(
-                    array('attribute' => 'email', 'like' => '%' . $input->getArgument('search') . '%'),
-                    array('attribute' => 'firstname', 'like' => '%' . $input->getArgument('search') . '%'),
-                    array('attribute' => 'lastname', 'like' => '%' . $input->getArgument('search') . '%'),
-                )
+            $mageCustomerModelResourceCustomerCollection->addAttributeToFilter(
+                [['attribute' => 'email', 'like' => '%' . $input->getArgument('search') . '%'], ['attribute' => 'firstname', 'like' => '%' . $input->getArgument('search') . '%'], ['attribute' => 'lastname', 'like' => '%' . $input->getArgument('search') . '%']],
             );
         }
 
-        $collection->setPageSize($config['limit']);
+        $mageCustomerModelResourceCustomerCollection->setPageSize($config['limit']);
 
-        $table = array();
-        foreach ($collection as $customer) {
-            $table[] = array(
+        $table = [];
+        /** @var Mage_Customer_Model_Customer $customer */
+        foreach ($mageCustomerModelResourceCustomerCollection as $customer) {
+            $table[] = [
                 $customer->getId(),
                 $customer->getEmail(),
                 $customer->getFirstname(),
                 $customer->getLastname(),
-                $this->_getWebsiteCodeById($customer->getwebsiteId()),
-            );
+                $this->_getWebsiteCodeById((int) $customer->getWebsiteId()),
+            ];
         }
 
-        if (count($table) > 0) {
-            /* @var $tableHelper TableHelper */
-            $tableHelper = $this->getHelper('table');
+        if ($table !== []) {
+            $tableHelper = $this->getTableHelper();
             $tableHelper
-                ->setHeaders(array('id', 'email', 'firstname', 'lastname', 'website'))
+                ->setHeaders(['id', 'email', 'firstname', 'lastname', 'website'])
                 ->renderByFormat($output, $table, $input->getOption('format'));
         } else {
             $output->writeln('<comment>No customers found</comment>');
         }
+
+        return Command::SUCCESS;
     }
 }

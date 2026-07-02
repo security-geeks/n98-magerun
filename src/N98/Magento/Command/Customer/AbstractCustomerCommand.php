@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Customer;
 
+use Mage;
 use Mage_Customer_Model_Address;
 use Mage_Customer_Model_Customer;
 use Mage_Customer_Model_Resource_Customer_Collection;
@@ -16,52 +19,38 @@ use N98\Magento\Command\AbstractMagentoCommand;
  */
 abstract class AbstractCustomerCommand extends AbstractMagentoCommand
 {
-    /**
-     * @return Mage_Customer_Model_Customer
-     */
-    protected function getCustomerModel()
+    protected function getCustomerModel(): Mage_Customer_Model_Customer
     {
-        return $this->_getModel('customer/customer', 'Mage_Customer_Model_Customer');
+        /** @var Mage_Customer_Model_Customer $mageCoreModelAbstract */
+        $mageCoreModelAbstract = $this->_getModel('customer/customer');
+        return $mageCoreModelAbstract;
     }
 
-    /**
-     * @return Mage_Customer_Model_Resource_Customer_Collection
-     */
-    protected function getCustomerCollection()
+    protected function getCustomerCollection(): Mage_Customer_Model_Resource_Customer_Collection
     {
-        return $this->_getResourceModel(
-            'customer/customer_collection',
-            'Mage_Customer_Model_Resource_Customer_Collection'
-        );
+        /** @var Mage_Customer_Model_Resource_Customer_Collection $mageCoreModelResourceDbCollectionAbstract */
+        $mageCoreModelResourceDbCollectionAbstract = Mage::getResourceModel('customer/customer_collection');
+        return $mageCoreModelResourceDbCollectionAbstract;
     }
 
-    /**
-     * @return Mage_Customer_Model_Address
-     */
-    protected function getAddressModel()
+    protected function getAddressModel(): Mage_Customer_Model_Address
     {
-        return $this->_getModel('customer/address', 'Mage_Customer_Model_Address');
+        /** @var Mage_Customer_Model_Address $mageCoreModelAbstract */
+        $mageCoreModelAbstract = $this->_getModel('customer/address');
+        return $mageCoreModelAbstract;
     }
 
-    /**
-     * @return Mage_Directory_Model_Resource_Region_Collection
-     */
-    protected function getRegionCollection()
+    protected function getRegionCollection(): Mage_Directory_Model_Resource_Region_Collection
     {
-        return $this->_getResourceModel(
-            'directory/region_collection',
-            'Mage_Directory_Model_Resource_Region_Collection'
-        );
+        /** @var Mage_Directory_Model_Resource_Region_Collection $mageCoreModelAbstract */
+        $mageCoreModelAbstract = Mage::getModel('directory/region_collection');
+        return $mageCoreModelAbstract;
     }
 
-    /**
-     * @return Mage_Directory_Model_Resource_Country_Collection
-     */
-    protected function getCountryCollection()
+    protected function getCountryCollection(): Mage_Directory_Model_Resource_Country_Collection
     {
-        return $this->_getResourceModel(
-            'directory/country_collection',
-            'Mage_Directory_Model_Resource_Country_Collection'
-        );
+        /** @var Mage_Directory_Model_Resource_Country_Collection $mageCoreModelAbstract */
+        $mageCoreModelAbstract = Mage::getModel('directory/country_collection');
+        return $mageCoreModelAbstract;
     }
 }

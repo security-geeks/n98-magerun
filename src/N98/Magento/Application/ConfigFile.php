@@ -1,9 +1,6 @@
 <?php
-/*
- * this file is part of magerun
- *
- * @author Tom Klingenberg <https://github.com/ktomk>
- */
+
+declare(strict_types=1);
 
 namespace N98\Magento\Application;
 
@@ -17,41 +14,30 @@ use Symfony\Component\Yaml\Yaml;
  * Class ConfigFileParser
  *
  * @package N98\Magento\Application
+ * @author Tom Klingenberg <https://github.com/ktomk>
  */
-class ConfigFile
+final class ConfigFile
 {
-    /**
-     * @var string
-     */
-    private $buffer;
+    private string $buffer;
+
+    private string $path;
 
     /**
-     * @var string
-     */
-    private $path;
-
-    /**
-     * @param string $path
-     * @return ConfigFile
      * @throws InvalidArgumentException if $path is invalid (can't be read for whatever reason)
      */
-    public static function createFromFile($path)
+    public static function createFromFile(string $path): ConfigFile
     {
-        $configFile = new static();
-        $configFile->loadFile($path);
+        $static = new self();
+        $static->loadFile($path);
 
-        return $configFile;
+        return $static;
     }
 
-    /**
-     * @param string $path
-     */
-    public function loadFile($path)
+    public function loadFile(string $path): void
     {
         $this->path = $path;
 
-        if (
-            'data://' !== substr($path, 0, 7)
+        if ('data://' !== substr($path, 0, 7)
             && !is_readable($path)
         ) {
             throw new InvalidArgumentException(sprintf("Config-file is not readable: '%s'", $path));
@@ -65,26 +51,14 @@ class ConfigFile
         $this->setBuffer($buffer);
     }
 
-    /**
-     * @param string $buffer
-     */
-    public function setBuffer($buffer)
+    public function setBuffer(string $buffer): void
     {
         $this->buffer = $buffer;
     }
 
-    /**
-     * @param string $magentoRootFolder
-     * @param null|SplFileInfo $file [optional]
-     *
-     * @return void
-     */
-    public function applyVariables($magentoRootFolder, SplFileInfo $file = null)
+    public function applyVariables(string $magentoRootFolder, ?SplFileInfo $file = null): void
     {
-        $replace = array(
-            '%module%' => $file ? $file->getPath() : '',
-            '%root%'   => $magentoRootFolder,
-        );
+        $replace = ['%module%' => $file instanceof SplFileInfo ? $file->getPath() : '', '%root%'   => $magentoRootFolder];
 
         $this->buffer = strtr($this->buffer, $replace);
     }
@@ -92,7 +66,7 @@ class ConfigFile
     /**
      * @throws RuntimeException
      */
-    public function toArray()
+    public function toArray(): array
     {
         $result = Yaml::parse($this->buffer);
 
@@ -103,10 +77,9 @@ class ConfigFile
         return $result;
     }
 
-    public function mergeArray(array $array)
+    public function mergeArray(array $array): array
     {
         $result = $this->toArray();
-
         return ArrayFunctions::mergeArrays($array, $result);
     }
 

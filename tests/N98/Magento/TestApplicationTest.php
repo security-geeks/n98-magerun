@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /*
  * this file is part of magerun
  *
@@ -7,36 +10,29 @@
 
 namespace N98\Magento;
 
-class TestApplicationTest extends \PHPUnit\Framework\TestCase
+use PHPUnit\Framework\TestCase;
+
+final class TestApplicationTest extends TestCase
 {
-    /**
-     * @test
-     */
-    public function creation()
+    public function testCreation()
     {
-        $application = new TestApplication($this);
-        self::assertInstanceOf(__NAMESPACE__ . '\TestApplication', $application);
+        $testApplication = new TestApplication($this);
+        $this->assertInstanceOf(__NAMESPACE__ . '\TestApplication', $testApplication);
     }
 
-    /**
-     * @test
-     */
-    public function magentoTestRoot()
+    public function testMagentoTestRoot()
     {
-        $application = new TestApplication($this);
-        $actual = $application->getTestMagentoRoot();
-        self::assertInternalType('string', $actual);
-        self::assertGreaterThan(10, strlen($actual));
-        self::assertDirectoryExists($actual);
+        $testApplication = new TestApplication($this);
+        $actual = $testApplication->getTestMagentoRoot();
+        $this->assertIsString($actual);
+        $this->assertGreaterThan(10, strlen($actual));
+        $this->assertDirectoryExists($actual);
     }
 
-    /**
-     * @test
-     */
-    public function getApplication()
+    public function testGetApplication()
     {
-        $application = new TestApplication($this);
-        $actual = $application->getApplication();
-        self::assertInstanceOf(__NAMESPACE__ . '\Application', $actual);
+        $testApplication = new TestApplication($this);
+        $actual = $testApplication->getApplication();
+        $this->assertInstanceOf(__NAMESPACE__ . '\Application', $actual);
     }
 }

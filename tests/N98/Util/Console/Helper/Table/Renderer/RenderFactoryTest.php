@@ -1,26 +1,30 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Util\Console\Helper\Table\Renderer;
 
-class RenderFactoryTest extends \PHPUnit\Framework\TestCase
+use PHPUnit\Framework\TestCase;
+
+final class RenderFactoryTest extends TestCase
 {
     /**
      * @covers \N98\Util\Console\Helper\Table\Renderer\RendererFactory::getFormats
      */
     public function testCreate()
     {
-        $renderFactory = new RendererFactory();
+        $rendererFactory = new RendererFactory();
 
-        $csv = $renderFactory->create('csv');
-        self::assertInstanceOf('N98\Util\Console\Helper\Table\Renderer\CsvRenderer', $csv);
+        $csv = $rendererFactory->create('csv');
+        $this->assertInstanceOf(CsvRenderer::class, $csv);
 
-        $json = $renderFactory->create('json');
-        self::assertInstanceOf('N98\Util\Console\Helper\Table\Renderer\JsonRenderer', $json);
+        $json = $rendererFactory->create('json');
+        $this->assertInstanceOf(JsonRenderer::class, $json);
 
-        $xml = $renderFactory->create('xml');
-        self::assertInstanceOf('N98\Util\Console\Helper\Table\Renderer\XmlRenderer', $xml);
+        $xml = $rendererFactory->create('xml');
+        $this->assertInstanceOf(XmlRenderer::class, $xml);
 
-        $invalidFormat = $renderFactory->create('invalid_format');
-        self::assertFalse($invalidFormat);
+        $invalidFormat = $rendererFactory->create('invalid_format');
+        $this->assertNotInstanceOf(\N98\Util\Console\Helper\Table\Renderer\RendererInterface::class, $invalidFormat);
     }
 }

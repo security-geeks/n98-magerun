@@ -1,44 +1,32 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Script\Repository;
 
 use N98\Util\OperatingSystem;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
 
+/**
+ * Class ScriptLoader
+ *
+ * @package N98\Magento\Command\Script\Repository
+ */
 class ScriptLoader
 {
     /**
-     * @var string
+     * @var string|false
      */
     private $homeDir;
 
-    /**
-     * @var array
-     */
-    protected $_scriptFiles = array();
+    protected array $_scriptFiles = [];
 
-    /**
-     * @var string
-     * @deprecated since 1.97.29
-     */
-    protected $_homeScriptFolder = '';
+    protected ?string $_magentoRootFolder = '';
 
-    /**
-     * @var string
-     */
-    protected $_magentoRootFolder = '';
+    protected array $_scriptFolders = [];
 
-    /**
-     * @var array
-     */
-    protected $_scriptFolders = array();
-
-    /**
-     * @param array  $scriptFolders
-     * @param string $magentoRootFolder
-     */
-    public function __construct(array $scriptFolders, $magentoRootFolder = null)
+    public function __construct(array $scriptFolders, string $magentoRootFolder = '')
     {
         $this->homeDir = OperatingSystem::getHomeDir();
 
@@ -47,47 +35,43 @@ class ScriptLoader
         if (OperatingSystem::isWindows()) {
             $scriptFolders[] = $this->homeDir . '/n98-magerun/scripts';
         }
+
         $scriptFolders[] = $this->homeDir . '/.n98-magerun/scripts';
 
         $this->findScripts($scriptFolders);
     }
 
-    /**
-     * @return array
-     */
-    public function getFiles()
+    public function getFiles(): array
     {
         return $this->_scriptFiles;
     }
 
-    protected function findScripts(array $scriptFolders = null)
+    protected function findScripts(?array $scriptFolders = null): void
     {
         if (null === $scriptFolders) {
             $scriptFolders = $this->_scriptFolders;
         }
 
-        $scriptFolders = array_filter(array_filter($scriptFolders, 'strlen'), 'is_dir');
+        $scriptFolders = array_filter($scriptFolders, function ($value): bool {
+            return (string) $value !== '';
+        });
+        $scriptFolders = array_filter($scriptFolders, 'is_dir');
 
         $this->_scriptFolders = $scriptFolders;
-        $this->_scriptFiles = array();
+        $this->_scriptFiles = [];
         if (1 > count($scriptFolders)) {
             return;
         }
 
         $finder = Finder::create()
-            ->files()
-            ->followLinks(true)
+            ->files()->followLinks()
             ->ignoreUnreadableDirs(true)
             ->name('*.magerun')
             ->in($scriptFolders);
 
-        $scriptFiles = array();
-        foreach ($finder as $file) { /* @var $file SplFileInfo */
-            $scriptFiles[$file->getFilename()] = array(
-                'fileinfo'    => $file,
-                'description' => $this->_readFirstLineOfFile($file->getPathname()),
-                'location'    => $this->_getLocation($file->getPathname()),
-            );
+        $scriptFiles = [];
+        foreach ($finder as $file) { /* @var SplFileInfo $file */
+            $scriptFiles[$file->getFilename()] = ['fileinfo'    => $file, 'description' => $this->_readFirstLineOfFile($file->getPathname()), 'location'    => $this->_getLocation($file->getPathname())];
         }
 
         ksort($scriptFiles);
@@ -96,33 +80,25 @@ class ScriptLoader
 
     /**
      * Reads the first line. If it's a comment return it.
-     *
-     * @param string $file
-     *
-     * @return string
      */
-    protected function _readFirstLineOfFile($file)
+    protected function _readFirstLineOfFile(string $file): string
     {
-        $f = @fopen($file, 'r');
-        if (!$f) {
+        $fopen = @fopen($file, 'r');
+        if (!$fopen) {
             return '';
         }
-        $line = trim(fgets($f));
-        fclose($f);
 
-        if (isset($line[0]) && $line[0] != '#') {
+        $line = trim((string) fgets($fopen));
+        fclose($fopen);
+
+        if (isset($line[0]) && $line[0] !== '#') {
             return '';
         }
 
         return trim(substr($line, 1));
     }
 
-    /**
-     * @param string $pathname
-     *
-     * @return string
-     */
-    protected function _getLocation($pathname)
+    protected function _getLocation(string $pathname): string
     {
         if (strstr($pathname, $this->_magentoRootFolder)) {
             return 'project';

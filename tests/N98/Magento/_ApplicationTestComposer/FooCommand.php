@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Acme;
 
 use N98\Magento\Command\AbstractMagentoCommand;
@@ -13,7 +15,8 @@ class FooCommand extends AbstractMagentoCommand
         $this->setName('acme:foo');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        return 0;
     }
 }

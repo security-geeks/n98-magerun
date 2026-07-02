@@ -1,53 +1,41 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Cache;
 
+use Mage;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Validator\Exception\RuntimeException;
 
+/**
+ * View cache command
+ *
+ * @package N98\Magento\Command\Cache
+ */
 class ViewCommand extends AbstractCacheCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('cache:view')
             ->addArgument('id', InputArgument::REQUIRED, 'Cache-ID')
             ->addOption('unserialize', '', InputOption::VALUE_NONE, 'Unserialize output')
             ->setDescription('Prints a cache entry')
-            ->addOption(
-                'fpc',
-                null,
-                InputOption::VALUE_NONE,
-                'Use full page cache instead of core cache (Enterprise only!)'
-            );
+        ;
     }
 
-    /**
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     *
-     * @return int|void
-     * @throws RuntimeException
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $this->detectMagento($output, true);
+        $this->detectMagento($output);
         if (!$this->initMagento()) {
-            return;
+            return Command::INVALID;
         }
 
-        if ($input->hasOption('fpc') && $input->getOption('fpc')) {
-            if (!class_exists('\Enterprise_PageCache_Model_Cache')) {
-                throw new RuntimeException('Enterprise page cache not found');
-            }
-            $cacheInstance = \Enterprise_PageCache_Model_Cache::getCacheInstance()->getFrontend();
-        } else {
-            $cacheInstance = \Mage::app()->getCache();
-        }
-        /* @var $cacheInstance \Varien_Cache_Core */
+        $cacheInstance = Mage::app()->getCache();
         $cacheData = $cacheInstance->load($input->getArgument('id'));
         if ($input->getOption('unserialize')) {
             $cacheData = unserialize($cacheData);
@@ -55,5 +43,6 @@ class ViewCommand extends AbstractCacheCommand
         }
 
         $output->writeln($cacheData);
+        return Command::SUCCESS;
     }
 }

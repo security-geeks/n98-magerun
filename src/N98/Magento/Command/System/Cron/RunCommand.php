@@ -1,65 +1,74 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\System\Cron;
 
+use Carbon\Carbon;
 use Exception;
 use Mage;
+use Mage_Core_Exception;
 use Mage_Core_Model_Config_Element;
 use Mage_Cron_Model_Schedule;
 use RuntimeException;
-use Symfony\Component\Console\Helper\DialogHelper;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\ChoiceQuestion;
 use Symfony\Component\Validator\Exception\InvalidArgumentException;
+use Throwable;
 
+/**
+ * Run cronjob command
+ *
+ * @package N98\Magento\Command\System\Cron
+ */
 class RunCommand extends AbstractCronCommand
 {
-    const REGEX_RUN_MODEL = '#^([a-z0-9_]+/[a-z0-9_]+)::([a-z0-9_]+)$#i';
-    /**
-     * @var array
-     */
-    protected $infos;
+    public const REGEX_RUN_MODEL = '#^([a-z0-9_]+/[a-z0-9_]+)::([a-z0-9_]+)$#i';
 
-    protected function configure()
+    protected array $infos;
+
+    protected function configure(): void
     {
         $this
             ->setName('sys:cron:run')
             ->addArgument('job', InputArgument::OPTIONAL, 'Job code')
             ->addOption('schedule', 's', InputOption::VALUE_NONE, 'Schedule cron instead of run with current user')
             ->setDescription('Runs a cronjob by job code');
-        $help = <<<HELP
+    }
+
+    public function getHelp(): string
+    {
+        return <<<HELP
 If no `job` argument is passed you can select a job from a list.
-See it in action: http://www.youtube.com/watch?v=QkzkLgrfNaM
+See it in action: https://www.youtube.com/watch?v=QkzkLgrfNaM
 If option schedule is present, cron is not launched, but just scheduled immediately in magento crontab.
 HELP;
-        $this->setHelp($help);
     }
 
     /**
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     *
-     * @return int|void
      * @throws Exception
+     * @throws Throwable
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $this->detectMagento($output, true);
+        $this->detectMagento($output);
         if (!$this->initMagento()) {
-            return;
+            return Command::INVALID;
         }
 
         $jobCode = $input->getArgument('job');
         if (!$jobCode) {
             $this->writeSection($output, 'Cronjob');
-            $jobCode = $this->askJobCode($output, $this->getJobs());
+            $jobCode = $this->askJobCode($input, $output, $this->getJobs());
         }
 
         $runConfigModel = $this->getRunConfigModelByJobCode($jobCode);
 
-        list($callback, $callableName) = $this->getCallbackFromRunConfigModel($runConfigModel, $jobCode);
+        [$callback, $callableName] = $this->getCallbackFromRunConfigModel($runConfigModel, $jobCode);
 
         $output->write('<info>Run </info><comment>' . $callableName . '</comment> ');
 
@@ -70,96 +79,90 @@ HELP;
         }
 
         $output->writeln('<info>done</info>');
+        return Command::SUCCESS;
     }
 
     /**
-     * @param OutputInterface $output
      * @param array $jobs array of array containing "job" keyed string entries of job-codes
-     *
-     * @return string         job-code
+     * @return string     job-code
      * @throws InvalidArgumentException|Exception when user selects invalid job interactively
      */
-    protected function askJobCode(OutputInterface $output, array $jobs)
+    protected function askJobCode(InputInterface $input, OutputInterface $output, array $jobs): string
     {
-        $index = 0;
         $keyMap = array_keys($jobs);
-        $question = array();
 
+        $choices = [];
         foreach ($jobs as $key => $job) {
-            $question[] = '<comment>[' . ($index++) . ']</comment> ' . $job['Job'] . PHP_EOL;
+            $choices[] = '<comment>' . $job['Job'] . '</comment>';
         }
-        $question[] = '<question>Please select job: </question>' . PHP_EOL;
 
-        /** @var $dialogHelper DialogHelper */
-        $dialogHelper = $this->getHelper('dialog');
-
-        return $dialogHelper->askAndValidate(
-            $output,
-            $question,
-            function ($typeInput) use ($keyMap, $jobs) {
-                $key = $keyMap[$typeInput];
-                if (!isset($jobs[$key])) {
-                    throw new InvalidArgumentException('Invalid job');
-                }
-
-                return $jobs[$key]['Job'];
+        $questionHelper = $this->getQuestionHelper();
+        $choiceQuestion = new ChoiceQuestion('<question>Please select job:</question> ', $choices);
+        $choiceQuestion->setValidator(function ($typeInput) use ($keyMap, $jobs) {
+            $key = $keyMap[$typeInput];
+            if (!isset($jobs[$key])) {
+                throw new InvalidArgumentException('Invalid job');
             }
-        );
+
+            return $jobs[$key]['Job'];
+        });
+
+        return $questionHelper->ask($input, $output, $choiceQuestion);
     }
 
     /**
-     * @param string $runConfigModel
-     * @param string $jobCode
-     * @return array
+     * @return array{0: (callable & string)|(array<int, mixed> & callable), 1: string} [callback, callableName] }
      */
-    private function getCallbackFromRunConfigModel($runConfigModel, $jobCode)
+    private function getCallbackFromRunConfigModel(string $runConfigModel, string $jobCode): array
     {
-        if (!preg_match(self::REGEX_RUN_MODEL, $runConfigModel, $runMatches)) {
+        if (in_array(preg_match(self::REGEX_RUN_MODEL, $runConfigModel, $runMatches), [0, false], true)) {
             throw new RuntimeException(
                 sprintf(
                     'Invalid model/method definition "%s" for job "%s", expecting "model/class::method".',
                     $runConfigModel,
-                    $jobCode
-                )
+                    $jobCode,
+                ),
             );
         }
-        list(, $runModel, $runMethod) = $runMatches;
+
+        [, $runModel, $runMethod] = $runMatches;
         unset($runMatches);
 
         $model = Mage::getModel($runModel);
         if (false === $model) {
             throw new RuntimeException(sprintf('Failed to create new "%s" model for job "%s"', $runModel, $jobCode));
         }
-        $callback = array($model, $runMethod);
-        $callableName = sprintf("%s::%s", $runModel, $runMethod);
+
+        $callback = [$model, $runMethod];
+        $callableName = sprintf('%s::%s', $runModel, $runMethod);
         if (!$model || !is_callable($callback, false, $callableName)) {
             throw new RuntimeException(sprintf('Invalid callback: %s for job "%s"', $callableName, $jobCode));
         }
 
-        return array($callback, $callableName);
+        return [$callback, $callableName];
     }
 
     /**
-     * @param array $callback
-     * @param string $jobCode
-     * @throws Exception
+     * @param mixed $callback
+     * @throws Throwable
+     * @throws Mage_Core_Exception
      */
-    private function executeConfigModel($callback, $jobCode)
+    private function executeConfigModel($callback, string $jobCode): void
     {
         Mage::getConfig()->init()->loadEventObservers('crontab');
         Mage::app()->addEventArea('crontab');
 
-        /* @var $schedule Mage_Cron_Model_Schedule */
+        /** @var Mage_Cron_Model_Schedule|false $schedule */
         $schedule = Mage::getModel('cron/schedule');
         if (false === $schedule) {
             throw new RuntimeException('Failed to create new Mage_Cron_Model_Schedule model');
         }
 
-        $environment = new ServerEnvironment();
-        $environment->initalize();
+        $serverEnvironment = new ServerEnvironment();
+        $serverEnvironment->initalize();
 
         try {
-            $timestamp = strftime('%Y-%m-%d %H:%M:%S', time());
+            $timestamp = (string) strftime('%Y-%m-%d %H:%M:%S', Carbon::now()->getTimestamp());
             $schedule
                 ->setJobCode($jobCode)
                 ->setStatus(Mage_Cron_Model_Schedule::STATUS_RUNNING)
@@ -171,17 +174,18 @@ HELP;
             $callback($schedule);
 
             $schedule->setStatus(Mage_Cron_Model_Schedule::STATUS_SUCCESS);
-        } catch (Exception $cronException) {
+        } catch (Exception $exception) {
             $schedule->setStatus(Mage_Cron_Model_Schedule::STATUS_ERROR);
         }
 
-        $schedule->setFinishedAt(strftime('%Y-%m-%d %H:%M:%S', time()))->save();
+        $schedule->setFinishedAt((string) strftime('%Y-%m-%d %H:%M:%S', Carbon::now()->getTimestamp()))
+            ->save();
 
-        if (isset($cronException)) {
+        if (isset($exception)) {
             throw new RuntimeException(
-                sprintf('Cron-job "%s" threw exception %s', $jobCode, get_class($cronException)),
+                sprintf('Cron-job "%s" threw exception %s', $jobCode, get_class($exception)),
                 0,
-                $cronException
+                $exception,
             );
         }
 
@@ -191,12 +195,13 @@ HELP;
     }
 
     /**
-     * @param array $callback
-     * @param string $jobCode
+     * @param mixed $callback
+     * @throws Throwable
+     * @throws Mage_Core_Exception
      */
-    private function scheduleConfigModel($callback, $jobCode)
+    private function scheduleConfigModel($callback, string $jobCode): void
     {
-        /* @var $schedule Mage_Cron_Model_Schedule */
+        /** @var Mage_Cron_Model_Schedule|false $schedule */
         $schedule = Mage::getModel('cron/schedule');
         if (false === $schedule) {
             throw new RuntimeException('Failed to create new Mage_Cron_Model_Schedule model');
@@ -207,41 +212,38 @@ HELP;
         }
 
         try {
-            $timestamp = strftime('%Y-%m-%d %H:%M:%S', time());
+            $timestamp = (string) strftime('%Y-%m-%d %H:%M:%S', Carbon::now()->getTimestamp());
             $schedule
                 ->setJobCode($jobCode)
                 ->setStatus(Mage_Cron_Model_Schedule::STATUS_PENDING)
                 ->setCreatedAt($timestamp)
                 ->setScheduledAt($timestamp)
                 ->save();
-        } catch (Exception $cronException) {
+        } catch (Exception $exception) {
             throw new RuntimeException(
-                sprintf('Cron-job "%s" threw exception %s', $jobCode, get_class($cronException)),
+                sprintf('Cron-job "%s" threw exception %s', $jobCode, get_class($exception)),
                 0,
-                $cronException
+                $exception,
             );
         }
     }
 
-    /**
-     * @param $jobCode
-     * @return string
-     */
-    private function getRunConfigModelByJobCode($jobCode)
+    private function getRunConfigModelByJobCode(string $jobCode): string
     {
         $jobsRoot = Mage::getConfig()->getNode('crontab/jobs');
         $defaultJobsRoot = Mage::getConfig()->getNode('default/crontab/jobs');
 
-        /* @var $jobConfig Mage_Core_Model_Config_Element */
+        /** @var Mage_Core_Model_Config_Element $jobConfig */
         $jobConfig = $jobsRoot->{$jobCode};
         if (!$jobConfig || !$jobConfig->run) {
             $jobConfig = $defaultJobsRoot->{$jobCode};
         }
+
         if (!$jobConfig || !$jobConfig->run) {
             throw new RuntimeException(sprintf('No job-config found for job "%s"!', $jobCode));
         }
 
-        /* @var $runConfig Mage_Core_Model_Config_Element */
+        /** @var Mage_Core_Model_Config_Element $runConfig */
         $runConfig = $jobConfig->run;
         if (empty($runConfig->model)) {
             throw new RuntimeException(sprintf('No run-config found for job "%s"!', $jobCode));

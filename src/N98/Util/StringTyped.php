@@ -1,9 +1,6 @@
 <?php
-/**
- * this file is part of magerun
- *
- * @author Tom Klingenberg <https://github.com/ktomk>
- */
+
+declare(strict_types=1);
 
 namespace N98\Util;
 
@@ -11,25 +8,25 @@ namespace N98\Util;
  * StringTyped String formatter / parser
  *
  * @package N98\Util
+ *
+ * @author Tom Klingenberg (https://github.com/ktomk)
  */
 abstract class StringTyped
 {
     /**
-     * @param string $value
-     * @return bool
+     * @param mixed $value
      */
-    public static function parseBoolOption($value)
+    public static function parseBoolOption($value): bool
     {
-        return in_array(strtolower($value), array('y', 'yes', 1, 'true'));
+        return in_array(strtolower($value), ['y', 'yes', 1, 'true']);
     }
 
     /**
-     * @param string $value
-     * @return string
+     * @param mixed $value
      */
-    public static function formatActive($value)
+    public static function formatActive($value): string
     {
-        if (in_array($value, array(1, 'true'))) {
+        if (in_array($value, [1, 'true'])) {
             return 'active';
         }
 

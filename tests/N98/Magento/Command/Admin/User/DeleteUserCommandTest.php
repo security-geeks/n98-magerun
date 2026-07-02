@@ -1,26 +1,31 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Admin\User;
 
+use Exception;
 use N98\Magento\Command\TestCase;
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Tester\CommandTester;
 
 /**
  * Class DeleteUserCommandTest
  */
-class DeleteUserCommandTest extends TestCase
+final class DeleteUserCommandTest extends TestCase
 {
-    protected $command;
-    protected $userModel;
+    private $command;
 
-    public function setUp()
+    private $userModel;
+
+    protected function setUp(): void
     {
-        $this->command = $this->getMockBuilder('\N98\Magento\Command\Admin\User\DeleteUserCommand')
-            ->setMethods(array('getUserModel'))
+        $this->command = $this->getMockBuilder(DeleteUserCommand::class)
+            ->setMethods(['getUserModel'])
             ->getMock();
 
         $this->userModel = $this->getMockBuilder('Mage_Admin_Model_User')
-            ->setMethods(array('loadByUsername', 'load', 'getId', 'delete'))
+            ->setMethods(['loadByUsername', 'load', 'getId', 'delete'])
             ->disableOriginalConstructor()
             ->getMock();
 
@@ -32,7 +37,7 @@ class DeleteUserCommandTest extends TestCase
     public function testCanDeleteByUserName()
     {
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('loadByUsername')
             ->with('aydin')
             ->willReturn($this->userModel);
@@ -48,33 +53,30 @@ class DeleteUserCommandTest extends TestCase
             ->willReturn(2);
 
         $this->userModel
-            ->expects(self::never())
+            ->expects($this->never())
             ->method('load');
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('delete');
 
         $application = $this->getApplication();
         $application->add($this->command);
+
         $command = $this->getApplication()->find('admin:user:delete');
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
-                'command'   => $command->getName(),
-                'id'        => 'aydin',
-                '--force'   => true,
-            )
+            ['command'   => $command->getName(), 'id'        => 'aydin', '--force'   => true],
         );
 
-        self::assertContains('User was successfully deleted', $commandTester->getDisplay());
+        $this->assertStringContainsString('User was successfully deleted', $commandTester->getDisplay());
     }
 
     public function testCanDeleteByEmail()
     {
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('loadByUsername')
             ->with('aydin@hotmail.co.uk')
             ->willReturn($this->userModel);
@@ -85,7 +87,7 @@ class DeleteUserCommandTest extends TestCase
             ->willReturn(null);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('load')
             ->with('aydin@hotmail.co.uk', 'email')
             ->willReturn($this->userModel);
@@ -96,29 +98,26 @@ class DeleteUserCommandTest extends TestCase
             ->willReturn(2);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('delete');
 
         $application = $this->getApplication();
         $application->add($this->command);
+
         $command = $this->getApplication()->find('admin:user:delete');
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
-                'command'   => $command->getName(),
-                'id'        => 'aydin@hotmail.co.uk',
-                '--force'   => true,
-            )
+            ['command'   => $command->getName(), 'id'        => 'aydin@hotmail.co.uk', '--force'   => true],
         );
 
-        self::assertContains('User was successfully deleted', $commandTester->getDisplay());
+        $this->assertStringContainsString('User was successfully deleted', $commandTester->getDisplay());
     }
 
     public function testReturnEarlyIfUserNotFound()
     {
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('loadByUsername')
             ->with('notauser')
             ->willReturn($this->userModel);
@@ -129,7 +128,7 @@ class DeleteUserCommandTest extends TestCase
             ->willReturn(null);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('load')
             ->with('notauser', 'email')
             ->willReturn($this->userModel);
@@ -141,21 +140,19 @@ class DeleteUserCommandTest extends TestCase
 
         $application = $this->getApplication();
         $application->add($this->command);
+
         $command = $this->getApplication()->find('admin:user:delete');
 
         $commandTester = new CommandTester($command);
-        $commandTester->execute(array(
-            'command'   => $command->getName(),
-            'id'        => 'notauser',
-        ));
+        $commandTester->execute(['command'   => $command->getName(), 'id'        => 'notauser']);
 
-        self::assertContains('User was not found', $commandTester->getDisplay());
+        $this->assertStringContainsString('User was not found', $commandTester->getDisplay());
     }
 
     public function testMessageIsPrintedIfErrorDeleting()
     {
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('loadByUsername')
             ->with('aydin@hotmail.co.uk')
             ->willReturn($this->userModel);
@@ -166,7 +163,7 @@ class DeleteUserCommandTest extends TestCase
             ->willReturn(null);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('load')
             ->with('aydin@hotmail.co.uk', 'email')
             ->willReturn($this->userModel);
@@ -176,32 +173,29 @@ class DeleteUserCommandTest extends TestCase
             ->method('getId')
             ->willReturn(2);
 
-        $exception = new \Exception("Error!");
+        $exception = new Exception('Error!');
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('delete')
-            ->will(self::throwException($exception));
+            ->willThrowException($exception);
 
         $application = $this->getApplication();
         $application->add($this->command);
+
         $command = $this->getApplication()->find('admin:user:delete');
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
-                'command'   => $command->getName(),
-                'id'        => 'aydin@hotmail.co.uk',
-                '--force'   => true,
-            )
+            ['command'   => $command->getName(), 'id'        => 'aydin@hotmail.co.uk', '--force'   => true],
         );
 
-        self::assertContains('Error!', $commandTester->getDisplay());
+        $this->assertStringContainsString('Error!', $commandTester->getDisplay());
     }
 
     public function testConfirmationTrueReplyDeletesUser()
     {
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('loadByUsername')
             ->with('notauser')
             ->willReturn($this->userModel);
@@ -212,7 +206,7 @@ class DeleteUserCommandTest extends TestCase
             ->willReturn(null);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('load')
             ->with('notauser', 'email')
             ->willReturn($this->userModel);
@@ -223,37 +217,35 @@ class DeleteUserCommandTest extends TestCase
             ->willReturn(2);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('delete');
 
         $application = $this->getApplication();
         $application->add($this->command);
+
         $command = $this->getApplication()->find('admin:user:delete');
 
-        $dialog = $this->getMockBuilder(\Symfony\Component\Console\Helper\DialogHelper::class)
-            ->setMethods(['askConfirmation'])
+        $questionHelper = $this->getMockBuilder(QuestionHelper::class)
+            ->onlyMethods(['ask'])
             ->getMock();
 
-        $dialog->expects(self::once())
-            ->method('askConfirmation')
+        $questionHelper->expects($this->once())
+            ->method('ask')
             ->willReturn(true);
 
         // We override the standard helper with our mock
-        $command->getHelperSet()->set($dialog, 'dialog');
+        $command->getHelperSet()->set($questionHelper, 'question');
 
         $commandTester = new CommandTester($command);
-        $commandTester->execute(array(
-            'command'   => $command->getName(),
-            'id'        => 'notauser',
-        ));
+        $commandTester->execute(['command'   => $command->getName(), 'id'        => 'notauser']);
 
-        self::assertContains('User was successfully deleted', $commandTester->getDisplay());
+        $this->assertStringContainsString('User was successfully deleted', $commandTester->getDisplay());
     }
 
     public function testConfirmationFalseReplyDoesNotDeleteUser()
     {
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('loadByUsername')
             ->with('notauser')
             ->willReturn($this->userModel);
@@ -264,7 +256,7 @@ class DeleteUserCommandTest extends TestCase
             ->willReturn(null);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('load')
             ->with('notauser', 'email')
             ->willReturn($this->userModel);
@@ -275,23 +267,24 @@ class DeleteUserCommandTest extends TestCase
             ->willReturn(2);
 
         $this->userModel
-            ->expects(self::never())
+            ->expects($this->never())
             ->method('delete');
 
         $application = $this->getApplication();
         $application->add($this->command);
+
         $command = $this->getApplication()->find('admin:user:delete');
 
-        $dialog = $this->getMockBuilder(\Symfony\Component\Console\Helper\DialogHelper::class)
-            ->setMethods(['askConfirmation'])
+        $questionHelper = $this->getMockBuilder(QuestionHelper::class)
+            ->onlyMethods(['ask'])
             ->getMock();
 
-        $dialog->expects(self::once())
-            ->method('askConfirmation')
+        $questionHelper->expects($this->once())
+            ->method('ask')
             ->willReturn(false);
 
         // We override the standard helper with our mock
-        $command->getHelperSet()->set($dialog, 'dialog');
+        $command->getHelperSet()->set($questionHelper, 'question');
 
         $commandTester = new CommandTester($command);
         $commandTester->execute([
@@ -299,21 +292,21 @@ class DeleteUserCommandTest extends TestCase
             'id'        => 'notauser',
         ]);
 
-        self::assertContains('Aborting delete', $commandTester->getDisplay());
+        $this->assertStringContainsString('Aborting delete', $commandTester->getDisplay());
     }
 
     public function testIfNoIdIsPresentItIsPromptedFor()
     {
-        $dialog = $this->getMockBuilder(\Symfony\Component\Console\Helper\DialogHelper::class)
-            ->setMethods(['ask'])
+        $questionHelper = $this->getMockBuilder(QuestionHelper::class)
+            ->onlyMethods(['ask'])
             ->getMock();
 
-        $dialog->expects(self::once())
+        $questionHelper->expects($this->once())
             ->method('ask')
             ->willReturn('aydin@hotmail.co.uk');
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('loadByUsername')
             ->with('aydin@hotmail.co.uk')
             ->willReturn($this->userModel);
@@ -324,7 +317,7 @@ class DeleteUserCommandTest extends TestCase
             ->willReturn(null);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('load')
             ->with('aydin@hotmail.co.uk', 'email')
             ->willReturn($this->userModel);
@@ -335,22 +328,20 @@ class DeleteUserCommandTest extends TestCase
             ->willReturn(2);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('delete');
 
         $application = $this->getApplication();
         $application->add($this->command);
+
         $command = $this->getApplication()->find('admin:user:delete');
 
         // We override the standard helper with our mock
-        $command->getHelperSet()->set($dialog, 'dialog');
+        $command->getHelperSet()->set($questionHelper, 'dialog');
 
         $commandTester = new CommandTester($command);
-        $commandTester->execute(array(
-            'command'   => $command->getName(),
-            '--force'   => true,
-        ));
+        $commandTester->execute(['command'   => $command->getName(), '--force'   => true]);
 
-        self::assertContains('User was successfully deleted', $commandTester->getDisplay());
+        $this->assertStringContainsString('User was successfully deleted', $commandTester->getDisplay());
     }
 }

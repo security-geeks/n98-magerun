@@ -1,18 +1,25 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Developer\Translate;
 
 use Mage;
 use N98\Magento\Command\AbstractMagentoCommand;
-use N98\Util\Console\Helper\DatabaseHelper;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * Export translation command
+ *
+ * @package N98\Magento\Command\Developer\Translate
+ */
 class ExportCommand extends AbstractMagentoCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('dev:translate:export')
@@ -22,22 +29,15 @@ class ExportCommand extends AbstractMagentoCommand
             ->addOption('store', null, InputOption::VALUE_OPTIONAL, 'Limit to a special store');
     }
 
-    /**
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     *
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectMagento($output);
         if (!$this->initMagento()) {
-            return;
+            return Command::INVALID;
         }
 
-        /** @var DatabaseHelper $helper */
-        $helper = $this->getHelper('database');
-        $db = $helper->getConnection();
+        $databaseHelper = $this->getDatabaseHelper();
+        $pdo = $databaseHelper->getConnection();
 
         $filename = $input->getArgument('filename');
 
@@ -48,21 +48,27 @@ class ExportCommand extends AbstractMagentoCommand
         $locale = $input->getArgument('locale');
         $output->writeln('Exporting to <info>' . $filename . '</info>');
 
-        $parameters = array('locale' => $locale);
-        $sql = "SELECT * FROM core_translate WHERE locale = :locale";
+        $parameters = ['locale' => $locale];
+        $sql = 'SELECT * FROM core_translate WHERE locale = :locale';
         if ($input->getOption('store')) {
             $sql .= ' AND store_id = :store_id';
             $parameters['store_id'] = Mage::app()->getStore($input->getOption('store'));
         }
-        $statement = $db->prepare($sql);
-        $statement->execute($parameters);
-        $result = $statement->fetchAll();
-        $f = fopen($filename, 'w');
 
-        foreach ($result as $row) {
-            fputcsv($f, array($row['string'], $row['translate']));
+        $statement = $pdo->prepare($sql);
+        $statement->execute($parameters);
+
+        $result = $statement->fetchAll();
+        $fopen = fopen($filename, 'w');
+
+        if ($result && $fopen) {
+            foreach ($result as $row) {
+                fputcsv($fopen, [$row['string'], $row['translate']]);
+            }
+
+            fclose($fopen);
         }
 
-        fclose($f);
+        return Command::SUCCESS;
     }
 }

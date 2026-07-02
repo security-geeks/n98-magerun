@@ -1,9 +1,6 @@
 <?php
-/*
- * this file is part of magerun
- *
- * @author Tom Klingenberg <https://github.com/ktomk>
- */
+
+declare(strict_types=1);
 
 namespace N98\Util;
 
@@ -11,63 +8,63 @@ namespace N98\Util;
  * Class OperatingSystem
  *
  * @package N98\Util
+ *
+ * @author Tom Klingenberg (https://github.com/ktomk)
  */
 class OperatingSystem
 {
+    public const OS_DARWIN  = 'darwin';
+
+    public const OS_LINUX   = 'linux';
+
+    public const OS_MAC     = 'mac';
+
+    public const OS_NETWARE = 'netware';
+
+    public const OS_WINDOWS = 'win';
+
     /**
      * @var int
      */
-    const UID_ROOT = 0;
+    public const UID_ROOT = 0;
 
     /**
      * Returns true if operating system is
      * based on GNU linux.
-     *
-     * @return boolean
      */
-    public static function isLinux()
+    public static function isLinux(): bool
     {
-        return (bool) stristr(PHP_OS, 'linux');
+        return (bool) stristr(PHP_OS, self::OS_LINUX);
     }
 
     /**
      * Returns true if operating system is
      * based on Microsoft Windows.
-     *
-     * @return boolean
      */
-    public static function isWindows()
+    public static function isWindows(): bool
     {
-        return strtolower(substr(PHP_OS, 0, 3)) === 'win';
+        return strtolower(substr(PHP_OS, 0, 3)) === self::OS_WINDOWS;
     }
 
     /**
      * Returns true if operating system is
      * based on novell netware.
-     *
-     * @return boolean
      */
-    public static function isNetware()
+    public static function isNetware(): bool
     {
-        return (bool) stristr(PHP_OS, 'netware');
+        return (bool) stristr(PHP_OS, self::OS_NETWARE);
     }
 
     /**
      * Returns true if operating system is
-     * based on apple MacOS.
-     *
-     * @return boolean
+     * based on Apple macOS.
      */
-    public static function isMacOs()
+    public static function isMacOs(): bool
     {
-        return stristr(PHP_OS, 'darwin') || stristr(PHP_OS, 'mac');
+        return stristr(PHP_OS, self::OS_DARWIN) || stristr(PHP_OS, self::OS_MAC);
     }
 
-    /**
-     * @param string $program
-     * @return bool
-     */
-    public static function isProgramInstalled($program)
+    public static function isProgramInstalled(string $program): bool
     {
         if (self::isWindows()) {
             return WindowsSystem::isProgramInstalled($program);
@@ -98,18 +95,16 @@ class OperatingSystem
      * Test for Root UID on a POSIX system if posix_getuid() is available.
      *
      * Returns false negatives if posix_getuid() is not available.
-     *
-     * @return bool
      */
-    public static function isRoot()
+    public static function isRoot(): bool
     {
         return function_exists('posix_getuid') && posix_getuid() === self::UID_ROOT;
     }
 
     /**
-     * get current working directory
+     * Get current working directory
      *
-     * @return string the current working directory on success, or false on failure.
+     * @return string|false the current working directory on success, or false on failure.
      */
     public static function getCwd()
     {
@@ -118,10 +113,8 @@ class OperatingSystem
 
     /**
      * Retrieve path to php binary
-     *
-     * @return string
      */
-    public static function getPhpBinary()
+    public static function getPhpBinary(): string
     {
         // PHP_BINARY (>= php 5.4)
         if (defined('PHP_BINARY')) {
@@ -135,14 +128,9 @@ class OperatingSystem
         return '/usr/bin/env php';
     }
 
-    /**
-     * @return bool
-     */
-    public static function isBashCompatibleShell()
+    public static function isBashCompatibleShell(): bool
     {
-        return in_array(
-            basename(getenv('SHELL')),
-            ['bash', 'zsh']
-        );
+        $env = getenv('SHELL');
+        return $env && in_array(basename($env), ['bash', 'zsh']);
     }
 }

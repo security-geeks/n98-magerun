@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * this file is part of magerun
  *
@@ -7,6 +10,7 @@
 
 namespace N98\Magento;
 
+use PHPUnit\Framework\MockObject\MockObject;
 use InvalidArgumentException;
 use N98\Magento\Command\TestCase;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -17,52 +21,43 @@ use Symfony\Component\Console\Input\ArrayInput;
  * @package N98\Magento
  * @covers N98\Magento\Modules
  */
-class ModulesTest extends TestCase
+final class ModulesTest extends TestCase
 {
-    /**
-     * @test
-     */
-    public function creation()
+    public function testCreation()
     {
         $modules = new Modules();
-        self::assertInstanceOf(__NAMESPACE__ . '\Modules', $modules);
+        $this->assertInstanceOf(__NAMESPACE__ . '\Modules', $modules);
     }
 
-    /**
-     * @test
-     */
-    public function filteringCountAndIterating()
+    public function testFilteringCountAndIterating()
     {
         $modules = new Modules();
 
         $result = $modules->filterModules(
-            $this->filter()
+            $this->filter(),
         );
-        self::assertInstanceOf(__NAMESPACE__ . '\Modules', $result);
-        self::assertCount(0, $result);
-        self::assertCount(0, iterator_to_array($result));
+        $this->assertInstanceOf(__NAMESPACE__ . '\Modules', $result);
+        $this->assertEmpty($result);
+        $this->assertEmpty(iterator_to_array($result));
     }
 
-    /**
-     * @test
-     */
-    public function findInstalledModulesAndFilterThem()
+    public function testFindInstalledModulesAndFilterThem()
     {
         $this->getApplication()->initMagento();
 
         $modules = new Modules();
-        self::assertCount(0, $modules);
+        $this->assertEmpty($modules);
         $total = count($modules->findInstalledModules());
-        self::assertGreaterThan(10, $total);
+        $this->assertGreaterThan(10, $total);
 
         $filtered = $modules->filterModules($this->filter('codepool', 'core'));
-        self::assertLessThan($total, count($filtered));
+        $this->assertLessThan($total, count($filtered));
 
         $filtered = $modules->filterModules($this->filter('status', 'active'));
-        self::assertLessThan($total, count($filtered));
+        $this->assertLessThan($total, count($filtered));
 
         $filtered = $modules->filterModules($this->filter('vendor', 'Mage_'));
-        self::assertLessThan($total, count($filtered));
+        $this->assertLessThan($total, count($filtered));
     }
 
     /**
@@ -70,7 +65,7 @@ class ModulesTest extends TestCase
      *
      * @param string $option
      * @param string $value
-     * @return \PHPUnit\Framework\MockObject\MockObject|ArrayInput
+     * @return MockObject|ArrayInput
      */
     private function filter($option = null, $value = null)
     {
@@ -81,11 +76,12 @@ class ModulesTest extends TestCase
             if (!array_key_exists($option, $defaultOptions)) {
                 throw new InvalidArgumentException(sprintf('Invalid option "%s"', $option));
             }
+
             $options[$option] = $value;
         }
 
         /** @var $input PHPUnit_Framework_MockObject_MockObject|ArrayInput */
-        $input = $this->getMockBuilder(\Symfony\Component\Console\Input\ArrayInput::class)
+        $input = $this->getMockBuilder(ArrayInput::class)
             ->disableOriginalConstructor()
             ->setMethods(['getOption'])
             ->getMock();

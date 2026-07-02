@@ -1,16 +1,25 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\System\Url;
 
 use InvalidArgumentException;
+use Mage;
+use Mage_Core_Model_Store;
+use Mage_Sitemap_Model_Resource_Catalog_Category;
+use Mage_Sitemap_Model_Resource_Catalog_Product;
+use Mage_Sitemap_Model_Resource_Cms_Page;
 use N98\Magento\Command\AbstractMagentoCommand;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Varien_Object;
 
 /**
- * Create url list
+ * List url command
  *
  * Examples:
  * - Create a list of product urls only
@@ -23,11 +32,13 @@ use Symfony\Component\Console\Output\OutputInterface;
  * The "linetemplate" can contain all parts "parse_url" return wrapped in '{}'. '{url}' always maps the complete url
  * and is set by default
  *
+ * @package N98\Magento\Command\System\Url
+ *
  * @author Fabrizio Branca
  */
 class ListCommand extends AbstractMagentoCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('sys:url:list')
@@ -38,8 +49,11 @@ class ListCommand extends AbstractMagentoCommand
             ->addArgument('stores', InputArgument::OPTIONAL, 'Stores (comma-separated list of store ids)')
             ->addArgument('linetemplate', InputArgument::OPTIONAL, 'Line template', '{url}')
             ->setDescription('Get all urls.');
+    }
 
-        $help = <<<HELP
+    public function getHelp(): string
+    {
+        return <<<HELP
 Examples:
 
 - Create a list of product urls only:
@@ -54,24 +68,13 @@ Examples:
 - The "linetemplate" can contain all parts "parse_url" return wrapped 
   in '{}'. '{url}' always maps the complete url and is set by default
 HELP;
-        $this->setHelp($help);
     }
 
-    /**
-     * Execute command
-     *
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     *
-     * @return int|void
-     * @throws InvalidArgumentException
-     * @throws \Mage_Core_Model_Store_Exception
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $this->detectMagento($output, true);
+        $this->detectMagento($output);
         if (!$this->initMagento()) {
-            return;
+            return Command::INVALID;
         }
 
         if ($input->getOption('add-all')) {
@@ -80,41 +83,42 @@ HELP;
             $input->setOption('add-cmspages', true);
         }
 
-        $stores = explode(',', $input->getArgument('stores'));
+        $stores = explode(',', (string) $input->getArgument('stores'));
 
-        $urls = array();
+        $urls = [];
 
-        foreach ($stores as $storeId) {
-            $currentStore = \Mage::app()->getStore($storeId); /* @var $currentStore \Mage_Core_Model_Store */
+        foreach ($stores as $store) {
+            /** @var Mage_Core_Model_Store $currentStore */
+            $currentStore = Mage::app()->getStore($store);
 
             // base url
-            $urls[] = $currentStore->getBaseUrl(\Mage_Core_Model_Store::URL_TYPE_WEB);
+            $urls[] = $currentStore->getBaseUrl(Mage_Core_Model_Store::URL_TYPE_WEB);
 
-            $linkBaseUrl = $currentStore->getBaseUrl(\Mage_Core_Model_Store::URL_TYPE_LINK);
+            $linkBaseUrl = $currentStore->getBaseUrl(Mage_Core_Model_Store::URL_TYPE_LINK);
 
             if ($input->getOption('add-categories')) {
-                $urls = $this->getUrls('sitemap/catalog_category', $linkBaseUrl, $storeId, $urls);
+                $urls = $this->getUrls('sitemap/catalog_category', $linkBaseUrl, $store, $urls);
             }
 
             if ($input->getOption('add-products')) {
-                $urls = $this->getUrls('sitemap/catalog_product', $linkBaseUrl, $storeId, $urls);
+                $urls = $this->getUrls('sitemap/catalog_product', $linkBaseUrl, $store, $urls);
             }
 
             if ($input->getOption('add-cmspages')) {
-                $urls = $this->getUrls('sitemap/cms_page', $linkBaseUrl, $storeId, $urls);
+                $urls = $this->getUrls('sitemap/cms_page', $linkBaseUrl, $store, $urls);
             }
         }
 
         if (count($urls) === 0) {
-            return;
+            return Command::SUCCESS;
         }
 
         foreach ($urls as $url) {
-
             // pre-process
             $line = $input->getArgument('linetemplate');
             $line = str_replace('{url}', $url, $line);
 
+            /** @var array $parts */
             $parts = parse_url($url);
             foreach ($parts as $key => $value) {
                 $line = str_replace('{' . $key . '}', $value, $line);
@@ -123,26 +127,36 @@ HELP;
             // ... and output
             $output->writeln($line);
         }
+
+        return Command::SUCCESS;
     }
 
     /**
-     * @param string $resourceModel
+     * @param 'sitemap/catalog_category'|'sitemap/catalog_product'|'sitemap/cms_page' $resourceModelAlias
      * @param string $linkBaseUrl
      * @param string $storeId
-     * @param array  $urls
      *
      * @return array
      */
-    protected function getUrls($resourceModel, $linkBaseUrl, $storeId, array $urls)
+    protected function getUrls($resourceModelAlias, $linkBaseUrl, $storeId, array $urls)
     {
-        $collection = \Mage::getResourceModel($resourceModel)->getCollection($storeId);
+        $resourceModel = Mage::getResourceModel($resourceModelAlias);
+        if (!$resourceModel instanceof Mage_Sitemap_Model_Resource_Catalog_Category &&
+            !$resourceModel instanceof Mage_Sitemap_Model_Resource_Catalog_Product &&
+            !$resourceModel instanceof Mage_Sitemap_Model_Resource_Cms_Page
+        ) {
+            return $urls;
+        }
+
+        $collection = $resourceModel->getCollection($storeId);
         if (!$collection) {
             return $urls;
         }
+
         foreach ($collection as $item) {
-            /* @var $item \Varien_Object */
             $urls[] = $linkBaseUrl . $item->getUrl();
         }
+
         return $urls;
     }
 }

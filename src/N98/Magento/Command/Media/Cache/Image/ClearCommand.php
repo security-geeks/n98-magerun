@@ -1,32 +1,41 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Media\Cache\Image;
 
+use Mage;
+use Mage_Catalog_Model_Product_Image;
 use N98\Magento\Command\AbstractMagentoCommand;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * Clear image cache command
+ *
+ * @package N98\Magento\Command\Media\Cache\Image
+ */
 class ClearCommand extends AbstractMagentoCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this->setName('media:cache:image:clear')
              ->setDescription('Clears image cache');
     }
 
-    /**
-     * @param \Symfony\Component\Console\Input\InputInterface $input
-     * @param \Symfony\Component\Console\Output\OutputInterface $output
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectMagento($output);
 
         if ($this->initMagento()) {
-            \Mage::getModel('catalog/product_image')->clearCache();
-            \Mage::dispatchEvent('clean_catalog_images_cache_after');
+            /** @var Mage_Catalog_Model_Product_Image $model */
+            $model = Mage::getModel('catalog/product_image');
+            $model->clearCache();
+            Mage::dispatchEvent('clean_catalog_images_cache_after');
             $output->writeln('<info>Image cache cleared</info>');
         }
+
+        return Command::SUCCESS;
     }
 }

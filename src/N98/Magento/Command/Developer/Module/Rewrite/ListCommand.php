@@ -1,69 +1,61 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Developer\Module\Rewrite;
 
-use N98\Util\Console\Helper\Table\Renderer\RendererFactory;
-use N98\Util\Console\Helper\TableHelper;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * List module rewrites command
+ *
+ * @package N98\Magento\Command\Developer\Module\Rewrite
+ */
 class ListCommand extends AbstractRewriteCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('dev:module:rewrite:list')
             ->setDescription('Lists all magento rewrites')
-            ->addOption(
-                'format',
-                null,
-                InputOption::VALUE_OPTIONAL,
-                'Output Format. One of [' . implode(',', RendererFactory::getFormats()) . ']'
-            )
+            ->addFormatOption()
         ;
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectMagento($output, true);
         if (!$this->initMagento()) {
-            return;
+            return Command::INVALID;
         }
 
         $rewrites = array_merge($this->loadRewrites(), $this->loadAutoloaderRewrites());
 
-        $table = array();
+        $table = [];
         foreach ($rewrites as $type => $data) {
-            if (count($data) > 0) {
+            if ((is_countable($data) ? count($data) : 0) > 0) {
                 foreach ($data as $class => $rewriteClass) {
-                    $table[] = array(
-                        $type,
-                        $class,
-                        implode(', ', $rewriteClass),
-                    );
+                    $table[] = [$type, $class, implode(', ', $rewriteClass)];
                 }
             }
         }
 
-        if (count($table) === 0 && $input->getOption('format') === null) {
+        if ($table === [] && $input->getOption('format') === null) {
             $output->writeln('<info>No rewrites were found.</info>');
         } else {
-            if (count($table) == 0) {
-                $table = array();
+            if ($table === []) {
+                $table = [];
             }
-            /* @var $tableHelper TableHelper */
-            $tableHelper = $this->getHelper('table');
+
+            $tableHelper = $this->getTableHelper();
             $tableHelper
-                ->setHeaders(array('Type', 'Class', 'Rewrite'))
+                ->setHeaders(['Type', 'Class', 'Rewrite'])
                 ->setRows($table)
                 ->renderByFormat($output, $table, $input->getOption('format'));
         }
+
+        return Command::SUCCESS;
     }
 }

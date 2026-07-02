@@ -1,60 +1,53 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Indexer;
 
-use N98\Util\Console\Helper\Table\Renderer\RendererFactory;
-use N98\Util\Console\Helper\TableHelper;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * List index command
+ *
+ * @package N98\Magento\Command\Indexer
+ */
 class ListCommand extends AbstractIndexerCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('index:list')
             ->setDescription('Lists all magento indexes')
-            ->addOption(
-                'format',
-                null,
-                InputOption::VALUE_OPTIONAL,
-                'Output Format. One of [' . implode(',', RendererFactory::getFormats()) . ']'
-            )
+            ->addFormatOption()
         ;
-
-        $help = <<<HELP
-Lists all Magento indexers of current installation.
-HELP;
-        $this->setHelp($help);
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    public function getHelp(): string
     {
-        $this->detectMagento($output, true);
+        return <<<HELP
+Lists all Magento indexers of current installation.
+HELP;
+    }
+
+    protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        $this->detectMagento($output);
         if (!$this->initMagento()) {
-            return;
+            return Command::INVALID;
         }
 
-        $table = array();
+        $table = [];
         foreach ($this->getIndexerList() as $index) {
-            $table[] = array(
-                $index['code'],
-                $index['status'],
-                $index['last_runtime'],
-            );
+            $table[] = [$index['code'], $index['status'], $index['last_runtime']];
         }
 
-        /* @var $tableHelper TableHelper */
-        $tableHelper = $this->getHelper('table');
+        $tableHelper = $this->getTableHelper();
         $tableHelper
-            ->setHeaders(array('code', 'status', 'time'))
+            ->setHeaders(['code', 'status', 'time'])
             ->renderByFormat($output, $table, $input->getOption('format'));
+
+        return Command::SUCCESS;
     }
 }

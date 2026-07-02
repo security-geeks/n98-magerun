@@ -5,7 +5,7 @@
     "support": {
         "issues": "https://github.com/netz98/n98-magerun/issues"
     },
-    "homepage": "http://netz98.github.com/n98-magerun/",
+    "homepage": "https://netz98.github.com/n98-magerun/",
     "keywords": [
         "magento",
         "installer",
@@ -13,27 +13,38 @@
         "magerun"
     ],
     "require": {
-        "composer/composer": "^1.3.0",
-        "fzaninotto/faker": "~1.4",
+        "php": "~7.4.0 || ~8.0.0 || ~8.1.0 || ~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0",
+        "ext-dom": "*",
+        "ext-json": "*",
+        "ext-libxml": "*",
+        "ext-pdo": "*",
+        "ext-simplexml": "*",
+        "ext-zip": "*",
+        "fakerphp/faker": "^1.20",
         "n98/junit-xml": "~1.0",
-        "php": ">=5.4.0",
+        "nesbot/carbon": "^2.73",
         "psy/psysh": "~0.4",
-        "symfony/console": "~2.3",
-        "symfony/event-dispatcher": "~4.4",
-        "symfony/finder": "~4.4",
-        "symfony/process": "~4.4",
-        "symfony/validator": "~2.3",
-        "symfony/yaml": "~2.3",
-        "twig/twig": "~2.13"
+        "rmccue/requests": "^2.0.11",
+        "symfony/console": "^5.4 || ^6.4",
+        "symfony/event-dispatcher": "^5.4 || ^6.4",
+        "symfony/finder": "^5.4 || ^6.4",
+        "symfony/polyfill-php80": "^1.30",
+        "symfony/process": "^5.4 || ^6.4",
+        "symfony/validator": "^5.4 || ^6.4",
+        "symfony/yaml": "^5.4 || ^6.4",
+        "twig/twig": "^3.7.1"
     },
     "require-dev": {
-        "ext-simplexml": "*",
         "bamarni/symfony-console-autocomplete": "^1.2.0",
-        "friendsofphp/php-cs-fixer": "~2.2.20",
-        "phing/phing": "~2.17.0",
-        "phpunit/phpunit": "^6",
-        "seld/phar-utils": "1.0.1",
-        "mikey179/vfsstream": "^1.6"
+        "composer/composer": "^2.7",
+        "friendsofphp/php-cs-fixer": "^3.4",
+        "mikey179/vfsstream": "^1.6",
+        "phpstan/phpstan": "^2.0",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-symfony": "^2.0",
+        "phpunit/phpunit": "^9",
+        "rector/rector": "^2",
+        "seld/phar-utils": "~1.2.0"
     },
     "autoload": {
         "psr-4": {
@@ -53,6 +64,11 @@
         {
             "name": "Alexander Menk",
             "email": "a.menk@netz98.de"
+        },
+        {
+            "name": "Sven Reichel",
+            "email": "github-sr@hotmail.com",
+            "role": "Maintainer"
         }
     ],
     "bin": [
@@ -60,7 +76,26 @@
     ],
     "config": {
         "platform": {
-            "php": "7.2.0"
-        }
+            "php": "7.4.0"
+        },
+        "sort-packages": true
+    },
+    "scripts": {
+        "php-cs-fixer:test": "vendor/bin/php-cs-fixer fix --dry-run --diff",
+        "php-cs-fixer:fix": "vendor/bin/php-cs-fixer fix",
+        "phpstan": "XDEBUG_MODE=off php vendor/bin/phpstan analyze",
+        "phpstan:baseline": "XDEBUG_MODE=off php vendor/bin/phpstan analyze -b .phpstan.dist.baseline.neon",
+        "phpunit:test": "XDEBUG_MODE=off php vendor/bin/phpunit --configuration .phpunit.dist.xml --no-coverage",
+        "rector:test": "vendor/bin/rector process --config .rector.php --dry-run",
+        "rector:fix": "vendor/bin/rector process --config .rector.php"
+    },
+    "scripts-descriptions": {
+        "php-cs-fixer:test": "Run php-cs-fixer",
+        "php-cs-fixer:fix": "Run php-cs-fixer and fix issues",
+        "phpstan": "Run phpstan",
+        "phpstan:baseline": "Run phpstan and update baseline",
+        "phpunit:test": "Run PHPUnit",
+        "rector:test": "Run rector",
+        "rector:fix": "Run rector and fix issues"
     }
 }

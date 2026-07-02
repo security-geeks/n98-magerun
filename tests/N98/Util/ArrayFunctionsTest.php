@@ -1,179 +1,111 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Util;
+
+use PHPUnit\Framework\TestCase;
 
 /**
  * Class ArrayFunctionsTest
  *
  * @covers N98\Util\ArrayFunctions
  */
-class ArrayFunctionsTest extends \PHPUnit\Framework\TestCase
+final class ArrayFunctionsTest extends TestCase
 {
     /**
-     * @test
-     * @param array $a
-     * @param array $b
-     * @param array $expected
      * @dataProvider mergeArraysProvider
+     * @param array<int|string, array<int|string, int|string>|string> $a
+     * @param array<int|string, array<string, int>|string> $b
+     * @param array<int|string, array<int|string, int|string>|string> $expected
      */
-    public function mergeArrays(array $a, array $b, array $expected)
+    public function testMergeArrays(array $a, array $b, array $expected)
     {
-        self::assertEquals($expected, ArrayFunctions::mergeArrays($a, $b));
+        $this->assertEquals($expected, ArrayFunctions::mergeArrays($a, $b));
     }
 
     /**
-     * @return array
+     * @return \Iterator<(int | string), mixed>
      */
-    public function mergeArraysProvider()
+    public function mergeArraysProvider(): \Iterator
     {
-        return array(
-            array(
-                array(),
-                array('Foo', 'Bar'),
-                array('Foo', 'Bar'),
-            ),
-            array(
-                array('Foo', 'Bar'),
-                array(),
-                array('Foo', 'Bar'),
-            ),
-            array(
-                array('Foo'),
-                array('Bar'),
-                array('Foo', 'Bar'),
-            ),
-            array(
-                array('Foo', array('Bar')),
-                array('Bar'),
-                array('Foo', array('Bar'), 'Bar'),
-            ),
-
-            /**
-             * Override Bar->Bar
-             */
-            array(
-                array('Foo', 'Bar' => array('Bar' => 1)),
-                array('Bar' => array('Bar' => 2)),
-                array('Foo', 'Bar' => array('Bar' => 2)),
-            ),
-        );
+        yield [[], ['Foo', 'Bar'], ['Foo', 'Bar']];
+        yield [['Foo', 'Bar'], [], ['Foo', 'Bar']];
+        yield [['Foo'], ['Bar'], ['Foo', 'Bar']];
+        yield [['Foo', ['Bar']], ['Bar'], ['Foo', ['Bar'], 'Bar']];
+        /**
+         * Override Bar->Bar
+         */
+        yield [['Foo', 'Bar' => ['Bar' => 1]], ['Bar' => ['Bar' => 2]], ['Foo', 'Bar' => ['Bar' => 2]]];
     }
 
-    /**
-     * @test
-     */
-    public function columnOrderArrayTable()
+    public function testColumnOrderArrayTable()
     {
-        $headers = array('foo', 'bar', 'baz');
-        $table = array(
-            array('foo' => 'A1', 'baz' => 'C1', 'B1', 'D1'),
-            array('A2', 'B2', 'C2', 'D2'),
-            array(null, null, null, 'foo' => 'A3'),
-        );
+        $headers = ['foo', 'bar', 'baz'];
+        $table = [['foo' => 'A1', 'baz' => 'C1', 'B1', 'D1'], ['A2', 'B2', 'C2', 'D2'], [null, null, null, 'foo' => 'A3']];
 
         $actual = ArrayFunctions::columnOrderArrayTable($headers, $table);
-        self::assertInternalType('array', $actual);
-        self::assertCount(count($table), $actual);
-        $expected = array(
-            array('foo' => 'A1', 'bar' => 'B1', 'baz' => 'C1', 'D1'),
-            array('foo' => 'A2', 'bar' => 'B2', 'baz' => 'C2', 'D2'),
-            array('foo' => 'A3', 'bar' => null, 'baz' => null, null),
-        );
-        self::assertEquals($expected, $actual);
-        self::assertSame($expected, $actual);
+        $this->assertIsArray($actual);
+        $this->assertCount(count($table), $actual);
+        $expected = [['foo' => 'A1', 'bar' => 'B1', 'baz' => 'C1', 'D1'], ['foo' => 'A2', 'bar' => 'B2', 'baz' => 'C2', 'D2'], ['foo' => 'A3', 'bar' => null, 'baz' => null, null]];
+        $this->assertEquals($expected, $actual);
+        $this->assertSame($expected, $actual);
     }
 
     /**
-     * @test
      * @dataProvider provideColumnOrderings
      */
-    public function columnOrder($columns, $array, $expected)
+    public function testColumnOrder($columns, $array, $expected)
     {
         $actual = ArrayFunctions::columnOrder($columns, $array);
-        self::assertInternalType('array', $actual);
-        self::assertEquals($expected, $actual);
-        self::assertSame($expected, $actual);
+        $this->assertIsArray($actual);
+        $this->assertEquals($expected, $actual);
+        $this->assertSame($expected, $actual);
     }
 
     /**
      * @see columnOrder
-     * @return array
+     * @return \Iterator<(int | string), mixed>
      */
-    public function provideColumnOrderings()
+    public function provideColumnOrderings(): \Iterator
     {
-        return array(
-            array(
-                array('foo', 'bar', 'baz'),
-                array('A', 'B', 'C'),
-                array('foo' => 'A', 'bar' => 'B', 'baz' => 'C'),
-            ),
-            array(
-                array('foo', 'bar', 'baz'),
-                array('A', 'B', 'C', 'D'),
-                array('foo' => 'A', 'bar' => 'B', 'baz' => 'C', 'D'),
-            ),
-            array(
-                array('foo', 'bar', 'baz'),
-                array('A', 'B', 'C'),
-                array('foo' => 'A', 'bar' => 'B', 'baz' => 'C'),
-            ),
-            array(
-                array('foo', 'bar', 'baz'),
-                array('buz' => 'D', 'A', 'B', 'C'),
-                array('foo' => 'A', 'bar' => 'B', 'baz' => 'C', 'buz' => 'D'),
-            ),
-            array(
-                array('foo', 'bar', 'baz'),
-                array('foo' => 'A', 'baz' => 'C', 'B', 'D'),
-                array('foo' => 'A', 'bar' => 'B', 'baz' => 'C', 'D'),
-            ),
-            array(
-                array('foo', 'bar', 'baz'),
-                array('foo' => 'A', 'baz' => 'C'),
-                array('foo' => 'A', 'bar' => null, 'baz' => 'C'),
-            ),
-        );
+        yield [['foo', 'bar', 'baz'], ['A', 'B', 'C'], ['foo' => 'A', 'bar' => 'B', 'baz' => 'C']];
+        yield [['foo', 'bar', 'baz'], ['A', 'B', 'C', 'D'], ['foo' => 'A', 'bar' => 'B', 'baz' => 'C', 'D']];
+        yield [['foo', 'bar', 'baz'], ['A', 'B', 'C'], ['foo' => 'A', 'bar' => 'B', 'baz' => 'C']];
+        yield [['foo', 'bar', 'baz'], ['buz' => 'D', 'A', 'B', 'C'], ['foo' => 'A', 'bar' => 'B', 'baz' => 'C', 'buz' => 'D']];
+        yield [['foo', 'bar', 'baz'], ['foo' => 'A', 'baz' => 'C', 'B', 'D'], ['foo' => 'A', 'bar' => 'B', 'baz' => 'C', 'D']];
+        yield [['foo', 'bar', 'baz'], ['foo' => 'A', 'baz' => 'C'], ['foo' => 'A', 'bar' => null, 'baz' => 'C']];
     }
 
     /**
      * @see matrixFilterByValue
      * @see matrixFilterStartsWith
-     * @return array
+     * @return \Iterator<(int | string), mixed>
      */
-    public function provideMatrix()
+    public function provideMatrix(): \Iterator
     {
-        return array(
-            array(
-                array(
-                    array('foo' => 'bar'),
-                    array('foo' => 'baz'),
-                    array('foo' => 'zaz'),
-                ),
-            ),
-        );
+        yield [[['foo' => 'bar'], ['foo' => 'baz'], ['foo' => 'zaz']]];
     }
 
     /**
-     * @param array $matrix
-     * @test
      * @dataProvider provideMatrix
+     * @param array<int, array<string, string>> $matrix
      */
-    public function matrixFilterByValue(array $matrix)
+    public function testMatrixFilterByValue(array $matrix)
     {
-        self::assertCount(3, $matrix);
+        $this->assertCount(3, $matrix);
         $filtered = ArrayFunctions::matrixFilterByValue($matrix, 'foo', 'bar');
-        self::assertCount(1, $filtered);
+        $this->assertCount(1, $filtered);
     }
 
     /**
-     * @param array $matrix
-     * @test
      * @dataProvider provideMatrix
+     * @param array<int, array<string, string>> $matrix
      */
-    public function matrixFilterStartsWith(array $matrix)
+    public function testMatrixFilterStartsWith(array $matrix)
     {
-        self::assertCount(3, $matrix);
+        $this->assertCount(3, $matrix);
         $filtered = ArrayFunctions::matrixFilterStartswith($matrix, 'foo', 'ba');
-        self::assertCount(2, $filtered);
+        $this->assertCount(2, $filtered);
     }
 }

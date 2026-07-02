@@ -1,0 +1,17 @@
+includes:
+    - .phpstan.dist.baseline.neon
+    - vendor/phpstan/phpstan-phpunit/extension.neon
+    - vendor/phpstan/phpstan-symfony/extension.neon
+parameters:
+    paths:
+      - src
+    scanDirectories:
+      - magento
+    level: 7
+    treatPhpDocTypesAsCertain: false
+    ignoreErrors:
+        - identifier: missingType.generics
+        - identifier: missingType.iterableValue
+        - identifier: offsetAccess.notFound
+        - identifier: property.notFound
+        - identifier: property.unusedType

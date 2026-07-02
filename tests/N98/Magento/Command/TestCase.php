@@ -1,7 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command;
 
+use PHPUnit\Framework\MockObject\MockObject;
+use Mage;
 use N98\Magento\Application;
 use N98\Magento\MagerunCommandTester;
 use N98\Magento\TestApplication;
@@ -32,7 +36,7 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
     }
 
     /**
-     * @return Application|\PHPUnit\Framework\MockObject\MockObject
+     * @return Application|MockObject
      */
     public function getApplication()
     {
@@ -44,7 +48,7 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
      */
     public function getDatabaseConnection()
     {
-        $resource = \Mage::getSingleton('core/resource');
+        $resource = Mage::getSingleton('core/resource');
 
         return $resource->getConnection('write');
     }
@@ -64,7 +68,7 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
     /**
      * @var array
      */
-    private $testers = array();
+    private $testers = [];
 
     /**
      * @param string|array $command name or input
@@ -72,15 +76,9 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
      */
     private function getMagerunTester($command)
     {
-        if (is_string($command)) {
-            $input = array(
-                'command' => $command,
-            );
-        } else {
-            $input = $command;
-        }
+        $input = is_string($command) ? ['command' => $command] : $command;
 
-        $hash = md5(json_encode($input));
+        $hash = md5(json_encode($input, JSON_THROW_ON_ERROR));
         if (!isset($this->testers[$hash])) {
             $this->testers[$hash] = new MagerunCommandTester($this, $input);
         }
@@ -93,11 +91,11 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
      * @param string $needle string within the display
      * @param string $message [optional]
      */
-    protected function assertDisplayContains($command, $needle, $message = "")
+    protected function assertDisplayContains($command, $needle, $message = '')
     {
         $display = $this->getMagerunTester($command)->getDisplay();
 
-        self::assertContains($needle, $display, $message);
+        $this->assertStringContainsString($needle, $display, $message);
     }
 
     /**
@@ -105,11 +103,11 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
      * @param string $needle string within the display
      * @param string $message [optional]
      */
-    protected function assertDisplayNotContains($command, $needle, $message = "")
+    protected function assertDisplayNotContains($command, $needle, $message = '')
     {
         $display = $this->getMagerunTester($command)->getDisplay();
 
-        self::assertNotContains($needle, $display, $message);
+        $this->assertStringNotContainsString($needle, $display, $message);
     }
 
     /**
@@ -117,11 +115,11 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
      * @param string $pattern
      * @param string $message [optional]
      */
-    protected function assertDisplayRegExp($command, $pattern, $message = "")
+    protected function assertDisplayRegExp($command, $pattern, $message = '')
     {
         $display = $this->getMagerunTester($command)->getDisplay();
 
-        self::assertRegExp($pattern, $display, $message);
+        $this->assertMatchesRegularExpression($pattern, $display, $message);
     }
 
     /**
@@ -131,19 +129,19 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
      * @param string $message
      * @return MagerunCommandTester
      */
-    protected function assertExecute($command, $message = "")
+    protected function assertExecute($command, $message = '')
     {
-        $tester = $this->getMagerunTester($command);
-        $status = $tester->getStatus();
+        $magerunCommandTester = $this->getMagerunTester($command);
+        $status = $magerunCommandTester->getStatus();
 
-        if (strlen($message)) {
+        if (strlen($message) !== 0) {
             $message .= "\n";
         }
 
-        $message .= "Command executes with a status code of zero";
+        $message .= 'Command executes with a status code of zero';
 
-        self::assertSame(0, $status, $message);
+        $this->assertSame(0, $status, $message);
 
-        return $tester;
+        return $magerunCommandTester;
     }
 }

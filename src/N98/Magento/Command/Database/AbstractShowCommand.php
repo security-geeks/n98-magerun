@@ -1,84 +1,66 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Database;
 
-use N98\Util\Console\Helper\Table\Renderer\RendererFactory;
-use N98\Util\Console\Helper\TableHelper;
 use N98\Util\Filesystem;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * Class AbstractShowCommand
+ *
+ * @package N98\Magento\Command\Database
+ */
 abstract class AbstractShowCommand extends AbstractDatabaseCommand
 {
-    protected $showMethod = 'getGlobalVariables';
+    protected string $showMethod = 'getGlobalVariables';
 
-    /**
-     * @var InputInterface
-     */
-    protected $_input = null;
+    protected InputInterface $_input;
 
-    /**
-     * @var OutputInterface
-     */
-    protected $_output = null;
+    protected OutputInterface $_output;
 
-    /**
-     * @var array
-     */
-    protected $_importantVars = array();
+    protected array $_importantVars = [];
 
     /**
      * Key = variable name => value method name in this class
-     *
-     * @var array
      */
-    protected $_specialFormat = array();
+    protected array $_specialFormat = [];
 
     /**
      * Contains all variables
-     *
-     * @var array
      */
-    protected $_allVariables = array();
+    protected array $_allVariables = [];
 
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->addArgument(
                 'search',
                 InputArgument::OPTIONAL,
-                'Only output variables of specified name. The wildcard % is supported!'
+                'Only output variables of specified name. The wildcard % is supported!',
             )
-            ->addOption(
-                'format',
-                null,
-                InputOption::VALUE_OPTIONAL,
-                'Output Format. One of [' . implode(',', RendererFactory::getFormats()) . ']'
-            )
+            ->addFormatOption()
             ->addOption(
                 'rounding',
                 null,
                 InputOption::VALUE_OPTIONAL,
                 'Amount of decimals to display. If -1 then disabled',
-                0
+                0,
             )
             ->addOption(
                 'no-description',
                 null,
                 InputOption::VALUE_NONE,
-                'Disable description'
+                'Disable description',
             );
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->_input = $input;
         $this->_output = $output;
@@ -89,57 +71,50 @@ abstract class AbstractShowCommand extends AbstractDatabaseCommand
         }
 
         $outputVars = $this->formatVariables($outputVars);
-        reset($this->_importantVars);
-        $hasDescription = isset($this->_importantVars[key($this->_importantVars)]['desc']) &&
+        $hasDescription = isset($this->_importantVars[array_key_first($this->_importantVars)]['desc']) &&
             false === $this->_input->getOption('no-description');
-        $header = array('Variable Name', 'Value');
-        if (true === $hasDescription) {
+        $header = ['Variable Name', 'Value'];
+        if ($hasDescription) {
             $header[] = 'Description';
         }
 
         $this->renderTable($header, $this->generateRows($outputVars, $hasDescription));
+
+        return Command::SUCCESS;
     }
 
-    /**
-     * @param array $outputVars
-     * @param bool  $hasDescription
-     *
-     * @return array
-     */
-    protected function generateRows(array $outputVars, $hasDescription)
+    protected function generateRows(array $outputVars, bool $hasDescription): array
     {
-        $rows = array();
+        $rows = [];
         $i = 0;
         foreach ($outputVars as $variableName => $variableValue) {
-            $rows[$i] = array($variableName, $variableValue);
-            if (
-                true === $hasDescription &&
-                isset($this->_importantVars[$variableName], $this->_importantVars[$variableName]['desc'])
+            $rows[$i] = [$variableName, $variableValue];
+            if (isset($this->_importantVars[$variableName]['desc']) && $hasDescription
             ) {
                 $rows[$i][] = $this->formatDesc($this->_importantVars[$variableName]['desc']);
             }
-            $i++;
+
+            ++$i;
         }
+
         // when searching no every variable has a description so fill the missing ones with blanks
         if (false === $hasDescription) {
             return $rows;
         }
+
         foreach ($rows as $k => $r) {
             if (2 === count($r)) {
                 $rows[$k] = $this->getVariableDescription($r);
             }
         }
+
         return $rows;
     }
 
     /**
      * Extend or modify this method to add descriptions to other variables
-     *
-     * @param array $row
-     *
-     * @return array
      */
-    protected function getVariableDescription(array $row)
+    protected function getVariableDescription(array $row): array
     {
         $row[] = '';
         return $row;
@@ -147,97 +122,76 @@ abstract class AbstractShowCommand extends AbstractDatabaseCommand
 
     /**
      * Formats the description
-     *
-     * @param string $desc
-     *
-     * @return string
      */
-    protected function formatDesc($desc)
+    protected function formatDesc(string $desc): string
     {
         $desc = preg_replace('~\s+~', ' ', $desc);
         return wordwrap($desc);
     }
 
     /**
-     * @param array $header
-     * @param array $rows
+     * @param string[] $header
      */
-    protected function renderTable(array $header, array $rows)
+    protected function renderTable(array $header, array $rows): void
     {
-        /** @var TableHelper $tableHelper */
-        $tableHelper = $this->getHelper('table');
+        $tableHelper = $this->getTableHelper();
         $tableHelper->setHeaders($header)
             ->renderByFormat($this->_output, $rows, $this->_input->getOption('format'));
     }
 
-    /**
-     * @param string|null $variable
-     */
-    protected function initVariables($variable = null)
+    protected function initVariables(?string $variable = null): void
     {
-        /** @var \N98\Util\Console\Helper\DatabaseHelper $database */
-        $database = $this->getHelper('database');
-        $this->_allVariables = $database->{$this->showMethod}($variable);
+        $databaseHelper = $this->getDatabaseHelper();
+        $this->_allVariables = $databaseHelper->{$this->showMethod}($variable);
     }
 
-    /**
-     * @param array $vars
-     *
-     * @return array
-     */
-    protected function formatVariables(array $vars)
+    protected function formatVariables(array $vars): array
     {
         $isStandardFormat = $this->_input->getOption('format') === null;
         $rounding = (int) $this->_input->getOption('rounding');
         if ($rounding > -1) {
             foreach ($vars as $k => &$v) {
                 $v = trim($v);
-                if (true === $this->allowRounding($k)) {
-                    $v = Filesystem::humanFileSize($v, $rounding);
+                if ($this->allowRounding($k)) {
+                    $v = Filesystem::humanFileSize((int) $v, $rounding);
                 }
+
                 if (isset($this->_specialFormat[$k])) {
                     $formatter = $this->_specialFormat[$k];
                     if (is_string($formatter) && method_exists($this, $formatter)) {
                         $formatter = [$this, $formatter];
                     }
+
                     $v = call_user_func($formatter, $v);
                 }
             }
+
             unset($v);
         }
 
         if ($isStandardFormat) {
             // align=right
             $maxWidth = $this->getMaxValueWidth($vars);
-            foreach ($vars as &$v) {
-                $v = str_pad($v, $maxWidth, ' ', STR_PAD_LEFT);
+            foreach ($vars as &$var) {
+                $var = str_pad($var, $maxWidth, ' ', STR_PAD_LEFT);
             }
         }
 
         return $vars;
     }
 
-    /**
-     * @param array $vars
-     *
-     * @return int
-     */
-    protected function getMaxValueWidth(array $vars)
+    protected function getMaxValueWidth(array $vars): int
     {
         $maxWidth = 0;
-        foreach ($vars as $v) {
-            $l = strlen($v);
+        foreach ($vars as $var) {
+            $l = strlen($var);
             if ($l > $maxWidth) {
                 $maxWidth = $l;
             }
         }
+
         return $maxWidth;
     }
 
-    /**
-     * @param string $name
-     *
-     * @return bool
-     */
-    abstract protected function allowRounding($name);
+    abstract protected function allowRounding(string $name): bool;
 }

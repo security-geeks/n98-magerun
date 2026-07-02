@@ -1,54 +1,47 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Cache;
 
-use N98\Util\Console\Helper\Table\Renderer\RendererFactory;
-use N98\Util\Console\Helper\TableHelper;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * List cache command
+ *
+ * @package N98\Magento\Command\Cache
+ */
 class ListCommand extends AbstractCacheCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('cache:list')
             ->setDescription('Lists all magento caches')
-            ->addOption(
-                'format',
-                null,
-                InputOption::VALUE_OPTIONAL,
-                'Output Format. One of [' . implode(',', RendererFactory::getFormats()) . ']'
-            )
+            ->addFormatOption()
         ;
     }
 
-    /**
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $this->detectMagento($output, true);
+        $this->detectMagento($output);
         if (!$this->initMagento()) {
-            return;
+            return Command::INVALID;
         }
 
         $cacheTypes = $this->_getCacheModel()->getTypes();
-        $table = array();
+        $table = [];
         foreach ($cacheTypes as $cacheCode => $cacheInfo) {
-            $table[] = array(
-                $cacheCode,
-                $cacheInfo['status'] ? 'enabled' : 'disabled',
-            );
+            $table[] = [$cacheCode, $cacheInfo['status'] ? 'enabled' : 'disabled'];
         }
 
-        /* @var $tableHelper TableHelper */
-        $tableHelper = $this->getHelper('table');
+        $tableHelper = $this->getTableHelper();
         $tableHelper
-            ->setHeaders(array('code', 'status'))
+            ->setHeaders(['code', 'status'])
             ->renderByFormat($output, $table, $input->getOption('format'));
+
+        return Command::SUCCESS;
     }
 }

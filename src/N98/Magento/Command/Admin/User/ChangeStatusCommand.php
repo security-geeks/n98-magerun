@@ -1,17 +1,25 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Admin\User;
 
 use Exception;
 use RuntimeException;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * Change admin user status command
+ *
+ * @package N98\Magento\Command\Admin\User
+ */
 class ChangeStatusCommand extends AbstractAdminUserCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('admin:user:change-status')
@@ -22,17 +30,10 @@ class ChangeStatusCommand extends AbstractAdminUserCommand
         ;
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectMagento($output);
         if ($this->initMagento()) {
-
             // Username
 
             $id = $this->getOrAskForArgument('id', $input, $output, 'Username or Email');
@@ -43,7 +44,7 @@ class ChangeStatusCommand extends AbstractAdminUserCommand
 
             if (!$user->getId()) {
                 $output->writeln('<error>User was not found</error>');
-                return;
+                return Command::FAILURE;
             }
 
             try {
@@ -63,7 +64,7 @@ class ChangeStatusCommand extends AbstractAdminUserCommand
 
                 // toggle is_active
                 if (!$input->getOption('activate') && !$input->getOption('deactivate')) {
-                    $user->setIsActive(!$user->getIsActive()); // toggle
+                    $user->setIsActive((int) !$user->getIsActive()); // toggle
                 }
 
                 $user->save();
@@ -71,17 +72,19 @@ class ChangeStatusCommand extends AbstractAdminUserCommand
                 if ($user->getIsActive() == 1) {
                     $output->writeln(
                         '<info>User <comment>' . $user->getUsername() . '</comment>' .
-                        ' is now <comment>active</comment></info>'
+                        ' is now <comment>active</comment></info>',
                     );
                 } else {
                     $output->writeln(
                         '<info>User <comment>' . $user->getUsername() . '</comment>' .
-                        ' is now <comment>inactive</comment></info>'
+                        ' is now <comment>inactive</comment></info>',
                     );
                 }
-            } catch (Exception $e) {
-                $output->writeln('<error>' . $e->getMessage() . '</error>');
+            } catch (Exception $exception) {
+                $output->writeln('<error>' . $exception->getMessage() . '</error>');
             }
         }
+
+        return Command::SUCCESS;
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Admin\User;
 
 use N98\Magento\Command\TestCase;
@@ -8,20 +10,22 @@ use Symfony\Component\Console\Tester\CommandTester;
 /**
  * Class ChangePasswordCommandTest
  */
-class ChangePasswordCommandTest extends TestCase
+final class ChangePasswordCommandTest extends TestCase
 {
-    protected $command;
-    protected $userModel;
-    protected $commandName = 'admin:user:change-password';
+    private $command;
 
-    public function setUp()
+    private $userModel;
+
+    private $commandName = 'admin:user:change-password';
+
+    protected function setUp(): void
     {
-        $this->command = $this->getMockBuilder('\N98\Magento\Command\Admin\User\ChangePasswordCommand')
-            ->setMethods(array('getUserModel'))
+        $this->command = $this->getMockBuilder(ChangePasswordCommand::class)
+            ->setMethods(['getUserModel'])
             ->getMock();
 
         $this->userModel = $this->getMockBuilder('Mage_Admin_Model_User')
-            ->setMethods(array('loadByUsername', 'load', 'getId', 'setPassword', 'validate', 'save'))
+            ->setMethods(['loadByUsername', 'load', 'getId', 'setPassword', 'validate', 'save'])
             ->disableOriginalConstructor()
             ->getMock();
 
@@ -33,7 +37,7 @@ class ChangePasswordCommandTest extends TestCase
     public function testCanChangePassword()
     {
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('loadByUsername')
             ->with('aydin')
             ->willReturn($this->userModel);
@@ -44,33 +48,30 @@ class ChangePasswordCommandTest extends TestCase
             ->willReturn(2);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('validate');
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('save');
 
         $application = $this->getApplication();
         $application->add($this->command);
+
         $command = $this->getApplication()->find($this->commandName);
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
-                'command'   => $command->getName(),
-                'username'  => 'aydin',
-                'password'  => 'password',
-            )
+            ['command'   => $command->getName(), 'username'  => 'aydin', 'password'  => 'password'],
         );
 
-        self::assertContains('Password successfully changed', $commandTester->getDisplay());
+        $this->assertStringContainsString('Password successfully changed', $commandTester->getDisplay());
     }
 
     public function testReturnEarlyIfUserNotFound()
     {
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('loadByUsername')
             ->with('notauser')
             ->willReturn($this->userModel);
@@ -82,14 +83,12 @@ class ChangePasswordCommandTest extends TestCase
 
         $application = $this->getApplication();
         $application->add($this->command);
+
         $command = $this->getApplication()->find($this->commandName);
 
         $commandTester = new CommandTester($command);
-        $commandTester->execute(array(
-            'command'   => $command->getName(),
-            'username'  => 'notauser',
-        ));
+        $commandTester->execute(['command'   => $command->getName(), 'username'  => 'notauser']);
 
-        self::assertContains('User was not found', $commandTester->getDisplay());
+        $this->assertStringContainsString('User was not found', $commandTester->getDisplay());
     }
 }

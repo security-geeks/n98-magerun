@@ -1,17 +1,23 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Developer\Module\Dependencies;
 
 use Exception;
 use InvalidArgumentException;
 use N98\Magento\Command\AbstractMagentoCommand;
-use N98\Util\Console\Helper\Table\Renderer\RendererFactory;
-use N98\Util\Console\Helper\TableHelper;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * Class AbstractCommand
+ *
+ * @package N98\Magento\Command\Developer\Module\Dependencies
+ */
 abstract class AbstractCommand extends AbstractMagentoCommand
 {
     /**#@+
@@ -19,69 +25,59 @@ abstract class AbstractCommand extends AbstractMagentoCommand
      *
      * @var string
      */
-    const COMMAND_NAME = '';
-    const COMMAND_DESCRIPTION = '';
-    const COMMAND_SECTION_TITLE_TEXT = '';
-    const COMMAND_NO_RESULTS_TEXT = '';
+    public const COMMAND_NAME = '';
+
+    public const COMMAND_DESCRIPTION = '';
+
+    public const COMMAND_SECTION_TITLE_TEXT = '';
+
+    public const COMMAND_NO_RESULTS_TEXT = '';
+
     /**#@-*/
 
     /**
      * Array of magento modules found in config
-     *
-     * @var array
      */
-    protected $modules;
+    protected ?array $modules = null;
 
-    /**
-     * Configure command
-     */
-    protected function configure()
+    protected function configure(): void
     {
         $this->setName(static::COMMAND_NAME)
             ->addArgument('moduleName', InputArgument::REQUIRED, 'Module to show dependencies')
             ->addOption('all', 'a', InputOption::VALUE_NONE, 'Show all dependencies (dependencies of dependencies)')
             ->setDescription(static::COMMAND_DESCRIPTION)
-            ->addOption(
-                'format',
-                null,
-                InputOption::VALUE_OPTIONAL,
-                'Output Format. One of [' . implode(',', RendererFactory::getFormats()) . ']'
-            )
+            ->addFormatOption()
         ;
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int|null|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $moduleName = $input->getArgument('moduleName');
         $recursive = $input->getOption('all');
         if ($input->getOption('format') === null) {
             $this->writeSection($output, sprintf(static::COMMAND_SECTION_TITLE_TEXT, $moduleName));
         }
+
         $this->detectMagento($output, true);
         $this->initMagento();
 
         try {
             $dependencies = $this->findModuleDependencies($moduleName, $recursive);
-            if (!empty($dependencies)) {
-                usort($dependencies, array($this, 'sortDependencies'));
-                /* @var $tableHelper TableHelper */
-                $tableHelper = $this->getHelper('table');
+            if ($dependencies !== []) {
+                usort($dependencies, [$this, 'sortDependencies']);
+                $tableHelper = $this->getTableHelper();
                 $tableHelper
-                    ->setHeaders(array('Name', 'Status', 'Current installed version', 'Code pool'))
-                    ->setPadType(STR_PAD_LEFT)
+                    ->setHeaders(['Name', 'Status', 'Current installed version', 'Code pool'])
                     ->renderByFormat($output, $dependencies, $input->getOption('format'));
             } else {
                 $output->writeln(sprintf(static::COMMAND_NO_RESULTS_TEXT, $moduleName));
             }
-        } catch (Exception $e) {
-            $output->writeln($e->getMessage());
+        } catch (Exception $exception) {
+            $output->writeln($exception->getMessage());
         }
+
+        return Command::SUCCESS;
     }
 
     /**
@@ -89,22 +85,16 @@ abstract class AbstractCommand extends AbstractMagentoCommand
      *
      * If $recursive = true, dependencies will be collected recursively for all module dependencies
      *
-     * @param string $moduleName
-     * @param bool   $recursive  [optional]
-     *
-     * @return array
      * @throws InvalidArgumentException of module-name is not found
      */
-    abstract protected function findModuleDependencies($moduleName, $recursive = false);
+    abstract protected function findModuleDependencies(string $moduleName, bool $recursive = false): array;
 
     /**
      * Sort dependencies list by module name ascending
-     *
-     * @param array $a
-     * @param array $b
-     * @return int
+     * @param array<int, mixed> $a
+     * @param array<int, mixed> $b
      */
-    private function sortDependencies(array $a, array $b)
+    private function sortDependencies(array $a, array $b): int
     {
         return strcmp($a[0], $b[0]);
     }

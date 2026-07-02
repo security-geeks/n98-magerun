@@ -1,36 +1,38 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command;
 
+use Exception;
 use InvalidArgumentException;
+use Mage;
 use N98\Util\BinaryString;
 use N98\Util\Exec;
 use RuntimeException;
-use Symfony\Component\Console\Helper\DialogHelper;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\StringInput;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\ChoiceQuestion;
+use Symfony\Component\Console\Question\Question;
 
+/**
+ * Script command
+ *
+ * @package N98\Magento\Command
+ */
 class ScriptCommand extends AbstractMagentoCommand
 {
-    /**
-     * @var array
-     */
-    protected $scriptVars = array();
+    protected array $scriptVars = [];
 
-    /**
-     * @var string
-     */
-    protected $_scriptFilename = '';
+    protected string $_scriptFilename = '';
 
-    /**
-     * @var bool
-     */
-    protected $_stopOnError = false;
+    protected bool $_stopOnError = false;
 
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('script')
@@ -39,8 +41,11 @@ class ScriptCommand extends AbstractMagentoCommand
             ->addOption('stop-on-error', null, InputOption::VALUE_NONE, 'Stops execution of script on error')
             ->setDescription('Runs multiple n98-magerun commands')
         ;
+    }
 
-        $help = <<<HELP
+    public function getHelp(): string
+    {
+        return <<<HELP
 Example:
 
    # Set multiple config
@@ -102,18 +107,14 @@ Example:
 
 It's possible to define multiple values by passing more than one option.
 HELP;
-        $this->setHelp($help);
     }
 
-    /**
-     * @return bool
-     */
-    public function isEnabled()
+    public function isEnabled(): bool
     {
         return Exec::allowed();
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->_scriptFilename = $input->getArgument('filename');
         $this->_stopOnError = $input->getOption('stop-on-error');
@@ -122,77 +123,83 @@ HELP;
         $commands = explode("\n", $script);
         $this->initScriptVars();
 
-        foreach ($commands as $commandString) {
-            $commandString = trim($commandString);
-            if (empty($commandString)) {
+        foreach ($commands as $command) {
+            $command = trim($command);
+            if ($command === '') {
                 continue;
             }
 
-            $firstChar = substr($commandString, 0, 1);
+            if ($command === '0') {
+                continue;
+            }
+
+            $firstChar = substr($command, 0, 1);
 
             switch ($firstChar) {
-
                 // comment
                 case '#':
                     break;
 
-                // set var
+                    // set var
                 case '$':
-                    $this->registerVariable($output, $commandString);
+                    $this->registerVariable($input, $output, $command);
                     break;
 
-                // run shell script
+                    // run shell script
                 case '!':
-                    $this->runShellCommand($output, $commandString);
+                    $this->runShellCommand($output, $command);
                     break;
 
                 default:
-                    $this->runMagerunCommand($input, $output, $commandString);
+                    $this->runMagerunCommand($input, $output, $command);
             }
         }
+
+        return Command::SUCCESS;
     }
 
     /**
-     * @param InputInterface $input
      * @throws InvalidArgumentException
      */
-    protected function _initDefines(InputInterface $input)
+    protected function _initDefines(InputInterface $input): void
     {
         $defines = $input->getOption('define');
         if (is_string($defines)) {
-            $defines = array($defines);
+            $defines = [$defines];
         }
-        if (count($defines) > 0) {
+
+        if ((is_countable($defines) ? count($defines) : 0) > 0) {
             foreach ($defines as $define) {
-                if (!strstr($define, '=')) {
+                if (in_array(strstr($define, '='), ['', '0'], true) || strstr($define, '=') === false) {
                     throw new InvalidArgumentException('Invalid define');
                 }
+
                 $parts = BinaryString::trimExplodeEmpty('=', $define);
                 $variable = $parts[0];
                 $value = null;
                 if (isset($parts[1])) {
                     $value = $parts[1];
                 }
+
                 $this->scriptVars['${' . $variable . '}'] = $value;
             }
         }
     }
 
     /**
-     * @param string $filename
      * @throws RuntimeException
      * @internal param string $input
-     * @return string
      */
-    protected function _getContent($filename)
+    protected function _getContent(string $filename): string
     {
-        if ($filename == '-' || empty($filename)) {
+        if ($filename === '-' || ($filename === '' || $filename === '0')) {
+            // @phpstan-ignore argument.type
             $script = @\file_get_contents('php://stdin', 'r');
         } else {
             $script = @\file_get_contents($filename);
         }
 
-        if (!$script) {
+        if (in_array($script, ['', '0', false], true)) {
             throw new RuntimeException('Script file was not found');
         }
 
@@ -200,66 +207,61 @@ HELP;
     }
 
     /**
-     * @param OutputInterface $output
-     * @param string $commandString
+     * @return void|mixed
      * @throws RuntimeException
-     * @return void
      */
-    protected function registerVariable(OutputInterface $output, $commandString)
+    protected function registerVariable(InputInterface $input, OutputInterface $output, string $commandString)
     {
-        if (preg_match('/^(\$\{[a-zA-Z0-9-_.]+\})=(.+)/', $commandString, $matches)) {
-            if (isset($matches[2]) && $matches[2][0] == '?') {
-
+        if (preg_match('/^(\$\{[a-zA-Z0-9-_.]+})=(.+)/', $commandString, $matches)) {
+            if ($matches[2][0] === '?') {
                 // Variable is already defined
                 if (isset($this->scriptVars[$matches[1]])) {
                     return $this->scriptVars[$matches[1]];
                 }
 
-                /* @var $dialog DialogHelper */
-                $dialog = $this->getHelper('dialog');
+                $dialog = $this->getQuestionHelper();
 
                 /**
                  * Check for select "?["
                  */
-                if (isset($matches[2][1]) && $matches[2][1] == '[') {
-                    if (preg_match('/\[(.+)\]/', $matches[2], $choiceMatches)) {
+                if (isset($matches[2][1]) && $matches[2][1] === '[') {
+                    if (preg_match('/\[(.+)]/', $matches[2], $choiceMatches)) {
                         $choices = BinaryString::trimExplodeEmpty(',', $choiceMatches[1]);
-                        $selectedIndex = $dialog->select(
-                            $output,
+                        $question = new ChoiceQuestion(
                             '<info>Please enter a value for <comment>' . $matches[1] . '</comment>:</info> ',
-                            $choices
+                            $choices,
                         );
-                        $this->scriptVars[$matches[1]] = $choices[$selectedIndex];
+                        $selectedIndex = $dialog->ask($input, $output, $question);
+
+                        $this->scriptVars[$matches[1]] = array_search($selectedIndex, $choices, true); # @todo check cmuench $choices[$selectedIndex]
                     } else {
                         throw new RuntimeException('Invalid choices');
                     }
                 } else {
                     // normal input
-                    $this->scriptVars[$matches[1]] = $dialog->askAndValidate(
-                        $output,
-                        '<info>Please enter a value for <comment>' . $matches[1] . '</comment>:</info> ',
-                        function ($value) {
-                            if ($value == '') {
-                                throw new RuntimeException('Please enter a value');
-                            }
-
-                            return $value;
+                    $question = new Question('<info>Please enter a value for <comment>' . $matches[1] . '</comment>: </info>');
+                    $question->setValidator(function ($value) {
+                        if ($value == '') {
+                            throw new RuntimeException('Please enter a value');
                         }
-                    );
+
+                        return $value;
+                    });
+
+                    $this->scriptVars[$matches[1]] = $dialog->ask($input, $output, $question);
                 }
             } else {
                 $this->scriptVars[$matches[1]] = $this->_replaceScriptVars($matches[2]);
             }
         }
+
+        return null;
     }
 
     /**
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     * @param string $commandString
-     * @throws RuntimeException
+     * @throws Exception
      */
-    protected function runMagerunCommand(InputInterface $input, OutputInterface $output, $commandString)
+    protected function runMagerunCommand(InputInterface $input, OutputInterface $output, string $commandString): void
     {
         $this->getApplication()->setAutoExit(false);
         $commandString = $this->_replaceScriptVars($commandString);
@@ -271,11 +273,7 @@ HELP;
         }
     }
 
-    /**
-     * @param string $commandString
-     * @return string
-     */
-    protected function _prepareShellCommand($commandString)
+    protected function _prepareShellCommand(string $commandString): string
     {
         $commandString = ltrim($commandString, '!');
 
@@ -286,50 +284,42 @@ HELP;
         ) {
             $this->initMagento();
         }
-        $this->initScriptVars();
-        $commandString = $this->_replaceScriptVars($commandString);
 
-        return $commandString;
+        $this->initScriptVars();
+
+        return $this->_replaceScriptVars($commandString);
     }
 
-    protected function initScriptVars()
+    protected function initScriptVars(): void
     {
         if (class_exists('\Mage')) {
-            $this->scriptVars['${magento.root}'] = $this->getApplication()->getMagentoRootFolder();
-            $this->scriptVars['${magento.version}'] = \Mage::getVersion();
-            $this->scriptVars['${magento.edition}'] = is_callable(array('\Mage', 'getEdition'))
-                ? \Mage::getEdition() : 'Community';
+            $this->scriptVars['${magento.root}']    = $this->getApplication()->getMagentoRootFolder();
+            $this->scriptVars['${magento.version}'] = Mage::getVersion();
+            $this->scriptVars['${magento.edition}'] = is_callable(['\Mage', 'getEdition'])
+                ? Mage::getEdition() : 'Community';
         }
 
-        $this->scriptVars['${php.version}'] = substr(phpversion(), 0, strpos(phpversion(), '-'));
+        $phpVersion = phpversion();
+        $this->scriptVars['${php.version}']     = substr($phpVersion, 0, (int) strpos($phpVersion, '-'));
         $this->scriptVars['${magerun.version}'] = $this->getApplication()->getVersion();
-        $this->scriptVars['${script.file}'] = $this->_scriptFilename;
-        $this->scriptVars['${script.dir}'] = dirname($this->_scriptFilename);
+        $this->scriptVars['${script.file}']     = $this->_scriptFilename;
+        $this->scriptVars['${script.dir}']      = dirname($this->_scriptFilename);
     }
 
     /**
-     * @param OutputInterface $output
-     * @param string          $commandString
      * @internal param $returnValue
      */
-    protected function runShellCommand(OutputInterface $output, $commandString)
+    protected function runShellCommand(OutputInterface $output, string $commandString): void
     {
         $commandString = $this->_prepareShellCommand($commandString);
         $returnValue = shell_exec($commandString);
-        if (!empty($returnValue)) {
+        if (!(in_array($returnValue, ['', '0', false, null], true))) {
             $output->writeln($returnValue);
         }
     }
 
-    /**
-     * @param string $commandString
-     *
-     * @return string
-     */
-    protected function _replaceScriptVars($commandString)
+    protected function _replaceScriptVars(string $commandString): string
     {
-        $commandString = str_replace(array_keys($this->scriptVars), $this->scriptVars, $commandString);
-
-        return $commandString;
+        return str_replace(array_keys($this->scriptVars), $this->scriptVars, $commandString);
     }
 }

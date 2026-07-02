@@ -1,42 +1,35 @@
 <?php
-/**
- * this file is part of magerun
- *
- * @author Tom Klingenberg <https://github.com/ktomk>
- */
+
+declare(strict_types=1);
 
 namespace N98\Magento\Command\Developer\Module\Rewrite;
 
+/**
+ * Class ClassUtil
+ *
+ * @package N98\Magento\Command\Developer\Module\Rewrite
+ *
+ * @author Tom Klingenberg (https://github.com/ktomk)
+ */
 final class ClassUtil
 {
-    /**
-     * @var string
-     */
-    private $className;
+    private string $className;
 
-    /**
-     * @var bool
-     */
-    private $exists;
+    private ?bool $exists = null;
 
-    /**
-     * @param string $className
-     *
-     * @return ClassUtil
-     */
-    public static function create($className)
+    public static function create(string $className): ClassUtil
     {
         return new self($className);
     }
 
-    public function __construct($className)
+    public function __construct(string $className)
     {
         $this->className = $className;
     }
 
-    public function exists()
+    public function exists(): bool
     {
-        if (null === $this->exists) {
+        if (is_null($this->exists)) {
             $this->exists = ClassExistsChecker::create($this->className)->existsExtendsSafe();
         }
 
@@ -45,12 +38,9 @@ final class ClassUtil
 
     /**
      * This class is a $class (is or inherits from it)
-     *
-     * @param ClassUtil $class
-     * @return bool
      */
-    public function isA(ClassUtil $class)
+    public function isA(ClassUtil $classUtil): bool
     {
-        return is_a($this->className, $class->className, true);
+        return is_a($this->className, $classUtil->className, true);
     }
 }

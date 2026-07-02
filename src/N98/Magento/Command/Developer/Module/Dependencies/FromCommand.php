@@ -1,9 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Developer\Module\Dependencies;
 
 use InvalidArgumentException;
+use Mage;
 
+/**
+ * List dependencies from command
+ *
+ * @package N98\Magento\Command\Developer\Module\Dependencies
+ */
 class FromCommand extends AbstractCommand
 {
     /**#@+
@@ -11,42 +19,42 @@ class FromCommand extends AbstractCommand
      *
      * @var string
      */
-    const COMMAND_NAME = 'dev:module:dependencies:from';
-    const COMMAND_DESCRIPTION = 'Show list of modules which depend on %s module';
-    const COMMAND_SECTION_TITLE_TEXT = "List of modules which depend on %s module";
-    const COMMAND_NO_RESULTS_TEXT = "No modules depend on %s module";
+    public const COMMAND_NAME = 'dev:module:dependencies:from';
+
+    public const COMMAND_DESCRIPTION = 'Show list of modules which depend on %s module';
+
+    public const COMMAND_SECTION_TITLE_TEXT = 'List of modules which depend on %s module';
+
+    public const COMMAND_NO_RESULTS_TEXT = 'No modules depend on %s module';
+
     /**#@-*/
 
     /**
      * @inheritdoc
      */
-    protected function findModuleDependencies($moduleName, $recursive = false)
+    protected function findModuleDependencies(string $moduleName, bool $recursive = false): array
     {
-        if ($this->modules === null) {
-            $this->modules = \Mage::app()->getConfig()->getNode('modules')->asArray();
+        if (is_null($this->modules)) {
+            $modulesNode = Mage::app()->getConfig()->getNode('modules');
+            $this->modules = $modulesNode ? $modulesNode->asArray() : [];
         }
 
         if (!isset($this->modules[$moduleName])) {
-            throw new InvalidArgumentException(sprintf("Module %s was not found", $moduleName));
+            throw new InvalidArgumentException(sprintf('Module %s was not found', $moduleName));
         }
 
-        $dependencies = array();
+        $dependencies = [];
         foreach ($this->modules as $dependencyName => $module) {
             if (!isset($module['depends'][$moduleName])) {
                 continue;
             }
 
-            $dependencies[$dependencyName] = array(
-                $dependencyName,
-                isset($module['active']) ? $this->formatActive($module['active']) : '-',
-                isset($module['version']) ? $module['version'] : '-',
-                isset($module['codePool']) ? $module['codePool'] : '-',
-            );
+            $dependencies[$dependencyName] = [$dependencyName, isset($module['active']) ? $this->formatActive($module['active']) : '-', $module['version'] ?? '-', $module['codePool'] ?? '-'];
 
             if ($recursive) {
                 $dependencies = array_merge(
                     $dependencies,
-                    $this->findModuleDependencies($dependencyName, $recursive)
+                    $this->findModuleDependencies($dependencyName, $recursive),
                 );
             }
         }

@@ -1,17 +1,23 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Customer;
 
-use N98\Util\Console\Helper\Table\Renderer\RendererFactory;
-use N98\Util\Console\Helper\TableHelper;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\Question;
 
+/**
+ * Create customer command
+ *
+ * @package N98\Magento\Command\Customer
+ */
 class CreateCommand extends AbstractCustomerCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('customer:create')
@@ -20,87 +26,78 @@ class CreateCommand extends AbstractCustomerCommand
             ->addArgument('firstname', InputArgument::OPTIONAL, 'Firstname')
             ->addArgument('lastname', InputArgument::OPTIONAL, 'Lastname')
             ->addArgument('website', InputArgument::OPTIONAL, 'Website')
-            ->addOption(
-                'format',
-                null,
-                InputOption::VALUE_OPTIONAL,
-                'Output Format. One of [' . implode(',', RendererFactory::getFormats()) . ']'
-            )
+            ->addFormatOption()
             ->setDescription('Creates a new customer/user for shop frontend.')
         ;
     }
 
-    /**
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     * @return int|null|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectMagento($output, true);
         if (!$this->initMagento()) {
-            return;
+            return Command::INVALID;
         }
 
-        $dialog = $this->getHelper('dialog');
-
-        // Email
-        $email = $this->getHelper('parameter')->askEmail($input, $output);
+        $questionHelper = $this->getQuestionHelper();
 
         // Password
         if (($password = $input->getArgument('password')) == null) {
-            $password = $dialog->askHiddenResponse($output, '<question>Password:</question>');
+            $question = new Question('<question>Password:</question> ');
+            $question->setHidden(true);
+            $password = $questionHelper->ask($input, $output, $question);
         }
 
         // Firstname
         if (($firstname = $input->getArgument('firstname')) == null) {
-            $firstname = $dialog->ask($output, '<question>Firstname:</question>');
+            $firstname = $questionHelper->ask($input, $output, new Question('<question>Firstname:</question> '));
         }
 
         // Lastname
         if (($lastname = $input->getArgument('lastname')) == null) {
-            $lastname = $dialog->ask($output, '<question>Lastname:</question>');
+            $lastname = $questionHelper->ask($input, $output, new Question('<question>Lastname:</question> '));
         }
 
-        $website = $this->getHelper('parameter')->askWebsite($input, $output);
+        $parameterHelper = $this->getParameterHelper();
+
+        // Email
+        $email = $parameterHelper->askEmail($input, $output);
+
+        // Website
+        $website = $parameterHelper->askWebsite($input, $output);
 
         // create new customer
-        $customer = $this->getCustomerModel();
-        $customer->setWebsiteId($website->getId());
-        $customer->loadByEmail($email);
+        $mageCustomerModelCustomer = $this->getCustomerModel();
+        $mageCustomerModelCustomer->setWebsiteId((int) $website->getId());
+        $mageCustomerModelCustomer->loadByEmail($email);
 
         $outputPlain = $input->getOption('format') === null;
 
-        $table = array();
-        if (!$customer->getId()) {
-            $customer->setWebsiteId($website->getId());
-            $customer->setEmail($email);
-            $customer->setFirstname($firstname);
-            $customer->setLastname($lastname);
-            $customer->setPassword($password);
-
-            $customer->save();
-            $customer->setConfirmation(null);
-            $customer->save();
+        $table = [];
+        if (!$mageCustomerModelCustomer->getId()) {
+            $mageCustomerModelCustomer->setWebsiteId((int) $website->getId());
+            $mageCustomerModelCustomer->setEmail($email);
+            $mageCustomerModelCustomer->setFirstname($firstname);   # @phpstan-ignore method.notFound (missing in current OpenMage)
+            $mageCustomerModelCustomer->setLastname($lastname);     # @phpstan-ignore method.notFound (missing in current OpenMage)
+            $mageCustomerModelCustomer->setPassword($password);
+            $mageCustomerModelCustomer->save();
+            $mageCustomerModelCustomer->setConfirmation(null);
+            $mageCustomerModelCustomer->save();
             if ($outputPlain) {
                 $output->writeln('<info>Customer <comment>' . $email . '</comment> successfully created</info>');
             } else {
-                $table[] = array(
-                    $email, $password, $firstname, $lastname,
-                );
+                $table[] = [$email, $password, $firstname, $lastname];
             }
-        } else {
-            if ($outputPlain) {
-                $output->writeln('<error>Customer ' . $email . ' already exists</error>');
-            }
+        } elseif ($outputPlain) {
+            $output->writeln('<error>Customer ' . $email . ' already exists</error>');
         }
 
         if (!$outputPlain) {
-            /* @var $tableHelper TableHelper */
-            $tableHelper = $this->getHelper('table');
+            $tableHelper = $this->getTableHelper();
             $tableHelper
-                ->setHeaders(array('email', 'password', 'firstname', 'lastname'))
+                ->setHeaders(['email', 'password', 'firstname', 'lastname'])
                 ->renderByFormat($output, $table, $input->getOption('format'));
         }
+
+        return Command::SUCCESS;
     }
 }

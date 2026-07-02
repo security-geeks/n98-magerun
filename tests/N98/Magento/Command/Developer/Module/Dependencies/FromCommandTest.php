@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Developer\Module\Dependencies;
 
 use N98\Magento\Command\TestCase;
@@ -10,67 +12,37 @@ use Symfony\Component\Console\Tester\CommandTester;
  *
  * @package N98\Magento\Command\Developer\Module\Dependencies
  */
-class FromCommandTest extends TestCase
+final class FromCommandTest extends TestCase
 {
-    public static function dataProviderTestExecute()
+    /**
+     * @return \Iterator<array<array<string, mixed>, mixed>>
+     */
+    public static function dataProviderTestExecute(): \Iterator
     {
-        return array(
-            'Not existing module, no --all' => array(
-                '$moduleName'   => 'NotExistentModule',
-                '$all'          => 0,
-                '$expectations' => array("Module NotExistentModule was not found"),
-                '$notContains'  => array(),
-            ),
-            'Not existing module, with --all' => array(
-                '$moduleName'   => 'NotExistentModule',
-                '$all'          => 1,
-                '$expectations' => array("Module NotExistentModule was not found"),
-                '$notContains'  => array(),
-            ),
-            'Not existing module, with -a' => array(
-                '$moduleName'   => 'NotExistentModule',
-                '$all'          => 2,
-                '$expectations' => array("Module NotExistentModule was not found"),
-                '$notContains'  => array(),
-            ),
-            'Mage_Admin module, no --all' => array(
-                '$moduleName'   => 'Mage_Admin',
-                '$all'          => 0,
-                '$expectations' => array('Mage_Adminhtml'),
-                '$notContains'  => array('Mage_AdminNotification'),
-            ),
-            'Mage_Admin module, with --all' => array(
-                '$moduleName'   => 'Mage_Admin',
-                '$all'          => 1,
-                '$expectations' => array('Mage_AdminNotification', 'Mage_Adminhtml'/*, 'Mage_Captcha', 'Mage_Persistent'*/),
-                '$notContains'  => array('Mage_Compiler', 'Mage_Customer'),
-            ),
-            'Mage_Admin module, with -a' => array(
-                '$moduleName'   => 'Mage_Admin',
-                '$all'          => 2,
-                '$expectations' => array('Mage_AdminNotification', 'Mage_Adminhtml'/*, 'Mage_Captcha', 'Mage_Persistent'*/),
-                '$notContains'  => array('Mage_Compiler', 'Mage_Customer'),
-            ),
-        );
+        yield 'Not existing module, no --all' => ['$moduleName'   => 'NotExistentModule', '$all'          => 0, '$expectations' => ['Module NotExistentModule was not found'], '$notContains'  => []];
+        yield 'Not existing module, with --all' => ['$moduleName'   => 'NotExistentModule', '$all'          => 1, '$expectations' => ['Module NotExistentModule was not found'], '$notContains'  => []];
+        yield 'Not existing module, with -a' => ['$moduleName'   => 'NotExistentModule', '$all'          => 2, '$expectations' => ['Module NotExistentModule was not found'], '$notContains'  => []];
+        yield 'Mage_Admin module, no --all' => ['$moduleName'   => 'Mage_Admin', '$all'          => 0, '$expectations' => ['Mage_Adminhtml'], '$notContains'  => ['Mage_AdminNotification']];
+        yield 'Mage_Admin module, with --all' => ['$moduleName'   => 'Mage_Admin', '$all'          => 1, '$expectations' => ['Mage_AdminNotification', 'Mage_Adminhtml'], '$notContains'  => ['Mage_Compiler', 'Mage_Customer']];
+        yield 'Mage_Admin module, with -a' => ['$moduleName'   => 'Mage_Admin', '$all'          => 2, '$expectations' => ['Mage_AdminNotification', 'Mage_Adminhtml'], '$notContains'  => ['Mage_Compiler', 'Mage_Customer']];
     }
 
     /**
      * @dataProvider dataProviderTestExecute
      * @param string $moduleName
      * @param int $all
-     * @param array $contains
-     * @param array $notContains
+     * @param string[] $contains
+     * @param string[] $notContains
      */
     public function testExecute($moduleName, $all, array $contains, array $notContains)
     {
         $application = $this->getApplication();
         $application->add(new FromCommand());
+
         $command = $this->getApplication()->find('dev:module:dependencies:from');
 
         $commandTester = new CommandTester($command);
-        $input = array(
-            'command' => $command->getName(), 'moduleName' => $moduleName,
-        );
+        $input = ['command' => $command->getName(), 'moduleName' => $moduleName];
 
         switch ($all) {
             case 2:
@@ -84,11 +56,12 @@ class FromCommandTest extends TestCase
         }
 
         $commandTester->execute($input);
-        foreach ($contains as $expectation) {
-            self::assertContains($expectation, $commandTester->getDisplay());
+        foreach ($contains as $contain) {
+            $this->assertStringContainsString($contain, $commandTester->getDisplay());
         }
-        foreach ($notContains as $expectation) {
-            self::assertNotContains($expectation, $commandTester->getDisplay());
+
+        foreach ($notContains as $notContain) {
+            $this->assertStringNotContainsString($notContain, $commandTester->getDisplay());
         }
     }
 }

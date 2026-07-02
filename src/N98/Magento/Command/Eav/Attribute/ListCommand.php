@@ -1,18 +1,27 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Eav\Attribute;
 
 use Exception;
+use Mage;
+use Mage_Eav_Model_Entity_Type;
+use Mage_Eav_Model_Resource_Entity_Attribute_Collection;
 use N98\Magento\Command\AbstractMagentoCommand;
-use N98\Util\Console\Helper\Table\Renderer\RendererFactory;
-use N98\Util\Console\Helper\TableHelper;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * List EAV attributes command
+ *
+ * @package N98\Magento\Command\Eav\Attribute
+ */
 class ListCommand extends AbstractMagentoCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('eav:attribute:list')
@@ -20,31 +29,22 @@ class ListCommand extends AbstractMagentoCommand
             ->addOption('filter-type', null, InputOption::VALUE_OPTIONAL, 'Filter attributes by entity type')
             ->addOption('add-source', null, InputOption::VALUE_NONE, 'Add source models to list')
             ->addOption('add-backend', null, InputOption::VALUE_NONE, 'Add backend type to list')
-            ->addOption(
-                'format',
-                null,
-                InputOption::VALUE_OPTIONAL,
-                'Output Format. One of [' . implode(',', RendererFactory::getFormats()) . ']'
-            );
+            ->addFormatOption();
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectMagento($output);
         if (!$this->initMagento()) {
-            return;
+            return Command::INVALID;
         }
-        $table = array();
-        $attributesCollection = \Mage::getResourceModel('eav/entity_attribute_collection');
+
+        $table = [];
+        /** @var Mage_Eav_Model_Resource_Entity_Attribute_Collection $attributesCollection */
+        $attributesCollection = Mage::getResourceModel('eav/entity_attribute_collection');
         $attributesCollection->setOrder('attribute_code', 'asc');
-        foreach ($attributesCollection as $attribute) {
-            $entityType = $this->_getEntityType($attribute);
+        foreach ($attributesCollection as $attributeCollection) {
+            $entityType = $this->_getEntityType($attributeCollection);
 
             /**
              * Filter by type
@@ -55,23 +55,24 @@ class ListCommand extends AbstractMagentoCommand
                 continue;
             }
 
-            $row = array();
-            $row[] = $attribute->getAttributeCode();
-            $row[] = $attribute->getId();
+            $row = [];
+            $row[] = $attributeCollection->getAttributeCode();
+            $row[] = $attributeCollection->getId();
             $row[] = $entityType;
-            $row[] = $attribute->getFrontendLabel();
+            $row[] = $attributeCollection->getFrontendLabel();
 
             if ($input->getOption('add-source')) {
-                $row[] = $attribute->getSourceModel() ? $attribute->getSourceModel() : '';
+                $row[] = $attributeCollection->getSourceModel() ?: '';
             }
+
             if ($input->getOption('add-backend')) {
-                $row[] = $attribute->getBackendType();
+                $row[] = $attributeCollection->getBackendType();
             }
 
             $table[] = $row;
         }
 
-        $headers = array();
+        $headers = [];
         $headers[] = 'code';
         $headers[] = 'id';
         $headers[] = 'entity_type';
@@ -79,30 +80,31 @@ class ListCommand extends AbstractMagentoCommand
         if ($input->getOption('add-source')) {
             $headers[] = 'source';
         }
+
         if ($input->getOption('add-backend')) {
             $headers[] = 'backend_type';
         }
 
-        /* @var $tableHelper TableHelper */
-        $tableHelper = $this->getHelper('table');
+        $tableHelper = $this->getTableHelper();
         $tableHelper
             ->setHeaders($headers)
             ->renderByFormat($output, $table, $input->getOption('format'));
+
+        return Command::SUCCESS;
     }
 
     /**
      * @param $attribute
-     * @return null|string
      */
-    protected function _getEntityType($attribute)
+    protected function _getEntityType($attribute): ?string
     {
         $entityTypeCode = '';
         try {
             $entityType = $attribute->getEntityType();
-            if ($entityType instanceof \Mage_Eav_Model_Entity_Type) {
+            if ($entityType instanceof Mage_Eav_Model_Entity_Type) {
                 $entityTypeCode = $entityType->getEntityTypeCode();
             }
-        } catch (Exception $e) {
+        } catch (Exception $exception) {
         }
 
         return $entityTypeCode;

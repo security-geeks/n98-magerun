@@ -1,14 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Developer\Module\Disableenable;
 
 /**
- * Enable Magento module(s)
+ * Enable module(s) command
+ *
+ * @package N98\Magento\Command\Developer\Module\Disableenable
  */
 class EnableCommand extends AbstractCommand
 {
-    /**
-     * @var string
-     */
-    protected $commandName = 'enable';
+    protected string $commandName = 'enable';
 }

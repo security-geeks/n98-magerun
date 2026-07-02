@@ -1,9 +1,6 @@
 <?php
-/**
- * this file is part of magerun
- *
- * @author Tom Klingenberg <https://github.com/ktomk>
- */
+
+declare(strict_types=1);
 
 namespace N98\Magento;
 
@@ -16,6 +13,7 @@ use PDO;
 use PDOException;
 use RuntimeException;
 use SimpleXMLElement;
+use Traversable;
 
 /**
  * Class DbSettings
@@ -25,33 +23,34 @@ use SimpleXMLElement;
  * The Magento database settings are stored in a SimpleXMLElement structure
  *
  * @package N98\Magento
+ *
+ * @author Tom Klingenberg (https://github.com/ktomk)
  */
 class DbSettings implements ArrayAccess, IteratorAggregate
 {
     /**
      * @var string|null known field members
      */
-    private $tablePrefix;
-    private $host;
-    private $port;
-    private $unixSocket;
-    private $dbName;
-    private $username;
-    private $password;
+    private ?string $tablePrefix;
 
-    /**
-     * @var array field array
-     */
-    private $config;
+    private string $host;
+
+    private ?string $port;
+
+    private ?string $unixSocket;
+
+    private string $dbName;
+
+    private string $username;
+
+    private string $password;
+
+    private array $config;
 
     /** @var string Connection Node from Local Xml */
-    private $connectionNode = 'default_setup';
+    private string $connectionNode = 'default_setup';
 
-    /**
-     * @param string $file path to app/etc/local.xml
-     * @param null $connectionNode
-     */
-    public function __construct($file, $connectionNode = null)
+    public function __construct(string $file, ?string $connectionNode = null)
     {
         $this->setFile($file);
         if (!is_null($connectionNode)) {
@@ -60,25 +59,23 @@ class DbSettings implements ArrayAccess, IteratorAggregate
     }
 
     /**
-     * @param string $file path to app/etc/local.xml
-     *
      * @throws InvalidArgumentException if the file is invalid
      */
-    public function setFile($file)
+    public function setFile(string $file): void
     {
         if (!is_readable($file)) {
             throw new InvalidArgumentException(
-                sprintf('"app/etc/local.xml"-file %s is not readable', var_export($file, true))
+                sprintf('"app/etc/local.xml"-file %s is not readable', var_export($file, true)),
             );
         }
 
-        $saved = libxml_use_internal_errors(true);
+        $saved  = libxml_use_internal_errors(true);
         $config = simplexml_load_file($file);
         libxml_use_internal_errors($saved);
 
         if (false === $config) {
             throw new InvalidArgumentException(
-                sprintf('Unable to open "app/etc/local.xml"-file %s and parse it as XML', var_export($file, true))
+                sprintf('Unable to open "app/etc/local.xml"-file %s and parse it as XML', var_export($file, true)),
             );
         }
 
@@ -92,8 +89,8 @@ class DbSettings implements ArrayAccess, IteratorAggregate
             throw new InvalidArgumentException(
                 sprintf(
                     'DB settings (%s) was not found in "app/etc/local.xml"-file',
-                    $connectionNode
-                )
+                    $connectionNode,
+                ),
             );
         }
 
@@ -101,24 +98,23 @@ class DbSettings implements ArrayAccess, IteratorAggregate
     }
 
     /**
-     * helper method to parse config file segment related to the database settings
-     *
-     * @param SimpleXMLElement $resources
+     * Helper method to parse config file segment related to the database settings
      */
-    private function parseResources(SimpleXMLElement $resources)
+    private function parseResources(SimpleXMLElement $resources): void
     {
         // default values
-        $config = array(
+        $config = [
             'host'        => null,
             'port'        => null,
             'unix_socket' => null,
             'dbname'      => null,
             'username'    => null,
             'password'    => null,
-        );
+        ];
 
         $connectionNode = $this->connectionNode;
-        $config = array_merge($config, (array) $resources->$connectionNode->connection);
+        /** @var string[] $config */
+        $config = array_merge($config, array_map('strval', (array) $resources->$connectionNode->connection));
         $config['prefix'] = (string) $resources->db->table_prefix;
 
         // known parameters: host, port, unix_socket, dbname, username, password, options, charset, persistent,
@@ -129,11 +125,11 @@ class DbSettings implements ArrayAccess, IteratorAggregate
 
         /* @see Varien_Db_Adapter_Pdo_Mysql::_connect */
         if (strpos($config['host'], '/') !== false) {
-            $config['unix_socket'] = (string) $config['host'];
+            $config['unix_socket'] = $config['host'];
             $config['host'] = null;
             $config['port'] = null;
         } elseif (strpos($config['host'], ':') !== false) {
-            list($config['host'], $config['port']) = explode(':', $config['host']);
+            [$config['host'], $config['port']] = explode(':', $config['host']);
             $config['unix_socket'] = null;
         }
 
@@ -157,22 +153,22 @@ class DbSettings implements ArrayAccess, IteratorAggregate
     {
         $dsn = 'mysql:';
 
-        $named = array();
+        $named = [];
 
         // blacklisted in prev. DSN creation: username, password, options, charset, persistent, driver_options, dbname
 
-        if (isset($this->unixSocket)) {
+        if ($this->unixSocket !== null) {
             $named['unix_socket'] = $this->unixSocket;
         } else {
             $named['host'] = $this->host;
-            if (isset($this->port)) {
+            if ($this->port !== null) {
                 $named['port'] = $this->port;
             }
         }
 
-        $options = array();
+        $options = [];
         foreach ($named as $name => $value) {
-            $options[$name] = "{$name}={$value}";
+            $options[$name] = sprintf('%s=%s', $name, $value);
         }
 
         return $dsn . implode(';', $options);
@@ -182,9 +178,8 @@ class DbSettings implements ArrayAccess, IteratorAggregate
      * Connects to the database without initializing magento
      *
      * @throws RuntimeException if pdo_mysql extension is not installed
-     * @return PDO
      */
-    public function getConnection()
+    public function getConnection(): PDO
     {
         if (!extension_loaded('pdo_mysql')) {
             throw new RuntimeException('pdo_mysql extension is not installed');
@@ -192,33 +187,33 @@ class DbSettings implements ArrayAccess, IteratorAggregate
 
         $database = $this->getDatabaseName();
 
-        $connection = new PDO(
+        $pdo = new PDO(
             $this->getDsn(),
             $this->getUsername(),
-            $this->getPassword()
+            $this->getPassword(),
         );
 
         /** @link http://bugs.mysql.com/bug.php?id=18551 */
-        $connection->query("SET SQL_MODE=''");
+        $pdo->query("SET SQL_MODE=''");
 
         try {
-            $connection->query('USE ' . $this->quoteIdentifier($database));
-        } catch (PDOException $e) {
-            $message = sprintf("Unable to use database '%s': %s %s", $database, get_class($e), $e->getMessage());
-            throw new RuntimeException($message, 0, $e);
+            $pdo->query('USE ' . $this->quoteIdentifier($database));
+        } catch (PDOException $pdoException) {
+            $message = sprintf("Unable to use database '%s': %s %s", $database, get_class($pdoException), $pdoException->getMessage());
+            throw new RuntimeException($message, 0, $pdoException);
         }
 
-        $connection->query("SET NAMES utf8");
+        $pdo->query('SET NAMES utf8');
 
-        $connection->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);
-        $connection->setAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true);
+        $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);
+        $pdo->setAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true);
 
-        return $connection;
+        return $pdo;
     }
 
-    public function getMysqlClientToolConnectionString()
+    public function getMysqlClientToolConnectionString(): string
     {
-        $segments = array();
+        $segments = [];
 
         if (null !== $this->config['unix_socket']) {
             $segments[] = '--socket=' . escapeshellarg($this->config['unix_socket']);
@@ -230,9 +225,11 @@ class DbSettings implements ArrayAccess, IteratorAggregate
         if (null !== $this->config['port']) {
             $segments[] = '-P' . escapeshellarg($this->config['port']);
         }
-        if (strlen($this->config['password'])) {
+
+        if (strlen($this->config['password']) !== 0) {
             $segments[] = '-p' . escapeshellarg($this->config['password']);
         }
+
         $segments[] = escapeshellarg($this->config['dbname']);
 
         return implode(' ', $segments);
@@ -242,32 +239,27 @@ class DbSettings implements ArrayAccess, IteratorAggregate
      * Mysql quoting of an identifier
      *
      * @param string $identifier UTF-8 encoded
-     *
-     * @return string quoted identifier
      */
-    private function quoteIdentifier($identifier)
+    private function quoteIdentifier(string $identifier): string
     {
-        $quote = '`'; // le backtique
+        $quote = '`';
 
         $pattern = '~^(?:[\x1-\x7F]|[\xC2-\xDF][\x80-\xBF]|[\xE0-\xEF][\x80-\xBF]{2})+$~';
 
-        if (!preg_match($pattern, $identifier)) {
+        if (in_array(preg_match($pattern, $identifier), [0, false], true)) {
             throw new InvalidArgumentException(
                 sprintf(
                     'Invalid identifier, must not contain NUL and must be UTF-8 encoded in the BMP: %s (hex: %s)',
                     var_export($identifier, true),
-                    bin2hex($identifier)
-                )
+                    bin2hex($identifier),
+                ),
             );
         }
 
-        return $quote . strtr($identifier, array($quote => $quote . $quote)) . $quote;
+        return $quote . strtr($identifier, [$quote => $quote . $quote]) . $quote;
     }
 
-    /**
-     * @return bool
-     */
-    public function isSocketConnect()
+    public function isSocketConnect(): bool
     {
         return isset($this->config['unix_socket']);
     }
@@ -275,7 +267,7 @@ class DbSettings implements ArrayAccess, IteratorAggregate
     /**
      * @return string table prefix, null if not in the settings (no or empty prefix)
      */
-    public function getTablePrefix()
+    public function getTablePrefix(): ?string
     {
         return $this->tablePrefix;
     }
@@ -283,7 +275,7 @@ class DbSettings implements ArrayAccess, IteratorAggregate
     /**
      * @return string hostname, null if there is no hostname setup (e.g. unix_socket)
      */
-    public function getHost()
+    public function getHost(): string
     {
         return $this->host;
     }
@@ -291,7 +283,7 @@ class DbSettings implements ArrayAccess, IteratorAggregate
     /**
      * @return string port, null if not setup
      */
-    public function getPort()
+    public function getPort(): ?string
     {
         return $this->port;
     }
@@ -299,7 +291,7 @@ class DbSettings implements ArrayAccess, IteratorAggregate
     /**
      * @return string username
      */
-    public function getUsername()
+    public function getUsername(): string
     {
         return $this->username;
     }
@@ -307,7 +299,7 @@ class DbSettings implements ArrayAccess, IteratorAggregate
     /**
      * @return string password
      */
-    public function getPassword()
+    public function getPassword(): string
     {
         return $this->password;
     }
@@ -315,17 +307,15 @@ class DbSettings implements ArrayAccess, IteratorAggregate
     /**
      * @return string unix socket, null if not in use
      */
-    public function getUnixSocket()
+    public function getUnixSocket(): ?string
     {
         return $this->unixSocket;
     }
 
     /**
      * content of previous $dbSettings field of the DatabaseHelper
-     *
-     * @return array
      */
-    public function getConfig()
+    public function getConfig(): array
     {
         return $this->config;
     }
@@ -333,7 +323,7 @@ class DbSettings implements ArrayAccess, IteratorAggregate
     /**
      * @return string of the database identifier, null if not in use
      */
-    public function getDatabaseName()
+    public function getDatabaseName(): string
     {
         return $this->dbName;
     }
@@ -343,9 +333,9 @@ class DbSettings implements ArrayAccess, IteratorAggregate
      */
 
     /**
-     * @return boolean true on success or false on failure.
+     * @return bool true on success or false on failure.
      */
-    public function offsetExists($offset)
+    public function offsetExists($offset): bool
     {
         return isset($this->config[$offset]);
     }
@@ -359,7 +349,7 @@ class DbSettings implements ArrayAccess, IteratorAggregate
             return $this->config[$offset];
         }
 
-        return;
+        return null;
     }
 
     /**
@@ -368,7 +358,7 @@ class DbSettings implements ArrayAccess, IteratorAggregate
      *
      * @throws BadMethodCallException
      */
-    public function offsetSet($offset, $value)
+    public function offsetSet($offset, $value): void
     {
         throw new BadMethodCallException('dbSettings are read-only');
     }
@@ -378,19 +368,15 @@ class DbSettings implements ArrayAccess, IteratorAggregate
      *
      * @throws BadMethodCallException
      */
-    public function offsetUnset($offset)
+    public function offsetUnset($offset): void
     {
         throw new BadMethodCallException('dbSettings are read-only');
     }
 
-    /*
+    /**
      * IteratorAggregate
      */
-
-    /**
-     * @return ArrayIterator
-     */
-    public function getIterator()
+    public function getIterator(): Traversable
     {
         return new ArrayIterator($this->config);
     }

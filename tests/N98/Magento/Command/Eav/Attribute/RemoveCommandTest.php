@@ -1,7 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Eav\Attribute;
 
+use InvalidArgumentException;
+use Mage;
 use N98\Magento\Command\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
@@ -10,24 +14,21 @@ use Symfony\Component\Console\Tester\CommandTester;
  * @package N98\Magento\Command\Eav\Attribute
  * @author Aydin Hassan <aydin@hotmail.co.uk>
  */
-class RemoveCommandTest extends TestCase
+final class RemoveCommandTest extends TestCase
 {
     public function testCommandThrowsExceptionIfInvalidEntityType()
     {
         $application = $this->getApplication();
         $application->add(new RemoveCommand());
         $application->setAutoExit(false);
+
         $command = $this->getApplication()->find('eav:attribute:remove');
 
-        $this->expectException('\InvalidArgumentException', 'Invalid entity_type specified: not_a_valid_type');
+        $this->expectException(InvalidArgumentException::class);
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
-                 'command'       => $command->getName(),
-                 'entityType'    => 'not_a_valid_type',
-                 'attributeCode' => array('someAttribute'),
-            )
+            ['command'       => $command->getName(), 'entityType'    => 'not_a_valid_type', 'attributeCode' => ['someAttribute']],
         );
     }
 
@@ -36,21 +37,15 @@ class RemoveCommandTest extends TestCase
         $application = $this->getApplication();
         $application->add(new RemoveCommand());
         $application->setAutoExit(false);
+
         $command = $this->getApplication()->find('eav:attribute:remove');
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
-                'command'       => $command->getName(),
-                'entityType'    => 'catalog_product',
-                'attributeCode' => array('not_an_attribute'),
-            )
+            ['command'       => $command->getName(), 'entityType'    => 'catalog_product', 'attributeCode' => ['not_an_attribute']],
         );
 
-        self::assertContains(
-            'Attribute: "not_an_attribute" does not exist for entity type: "catalog_product"',
-            $commandTester->getDisplay()
-        );
+        $this->assertStringContainsString('Attribute: "not_an_attribute" does not exist for entity type: "catalog_product"', $commandTester->getDisplay());
     }
 
     public function testAttributeIsSuccessfullyRemoved()
@@ -58,27 +53,20 @@ class RemoveCommandTest extends TestCase
         $application = $this->getApplication();
         $application->add(new RemoveCommand());
         $application->setAutoExit(false);
+
         $command = $this->getApplication()->find('eav:attribute:remove');
 
         $entityType = 'catalog_product';
         $attributeCode = 'crazyCoolAttribute';
-        $this->createAttribute($entityType, $attributeCode, array(
-            'type'  => 'text',
-            'input' => 'text',
-            'label' => 'Test Attribute',
-        ));
+        $this->createAttribute($entityType, $attributeCode, ['type'  => 'text', 'input' => 'text', 'label' => 'Test Attribute']);
 
-        self::assertTrue($this->attributeExists($entityType, $attributeCode));
+        $this->assertTrue($this->attributeExists($entityType, $attributeCode));
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
-                'command'       => $command->getName(),
-                'entityType'    => $entityType,
-                'attributeCode' => array($attributeCode),
-            )
+            ['command'       => $command->getName(), 'entityType'    => $entityType, 'attributeCode' => [$attributeCode]],
         );
 
-        self::assertFalse($this->attributeExists($entityType, $attributeCode));
+        $this->assertFalse($this->attributeExists($entityType, $attributeCode));
     }
 
     /**
@@ -90,26 +78,19 @@ class RemoveCommandTest extends TestCase
         $application = $this->getApplication();
         $application->add(new RemoveCommand());
         $application->setAutoExit(false);
+
         $command = $this->getApplication()->find('eav:attribute:remove');
 
         $attributeCode = 'crazyCoolAttribute';
-        $this->createAttribute($entityTypeCode, $attributeCode, array(
-            'type'  => 'text',
-            'input' => 'text',
-            'label' => 'Test Attribute',
-        ));
+        $this->createAttribute($entityTypeCode, $attributeCode, ['type'  => 'text', 'input' => 'text', 'label' => 'Test Attribute']);
 
-        self::assertTrue($this->attributeExists($entityTypeCode, $attributeCode));
+        $this->assertTrue($this->attributeExists($entityTypeCode, $attributeCode));
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
-                'command'       => $command->getName(),
-                'entityType'    => $entityTypeCode,
-                'attributeCode' => array($attributeCode),
-            )
+            ['command'       => $command->getName(), 'entityType'    => $entityTypeCode, 'attributeCode' => [$attributeCode]],
         );
 
-        self::assertFalse($this->attributeExists($entityTypeCode, $attributeCode));
+        $this->assertFalse($this->attributeExists($entityTypeCode, $attributeCode));
     }
 
     public function testCanRemoveMultipleAttributes()
@@ -117,45 +98,28 @@ class RemoveCommandTest extends TestCase
         $application = $this->getApplication();
         $application->add(new RemoveCommand());
         $application->setAutoExit(false);
+
         $command = $this->getApplication()->find('eav:attribute:remove');
 
         $attributeCode1 = 'crazyCoolAttribute1';
         $attributeCode2 = 'crazyCoolAttribute2';
-        $this->createAttribute('catalog_product', $attributeCode1, array(
-            'type'  => 'text',
-            'input' => 'text',
-            'label' => 'Test Attribute 1',
-        ));
+        $this->createAttribute('catalog_product', $attributeCode1, ['type'  => 'text', 'input' => 'text', 'label' => 'Test Attribute 1']);
 
-        $this->createAttribute('catalog_product', $attributeCode2, array(
-            'type'  => 'text',
-            'input' => 'text',
-            'label' => 'Test Attribute 2',
-        ));
+        $this->createAttribute('catalog_product', $attributeCode2, ['type'  => 'text', 'input' => 'text', 'label' => 'Test Attribute 2']);
 
-        self::assertTrue($this->attributeExists('catalog_product', $attributeCode1));
-        self::assertTrue($this->attributeExists('catalog_product', $attributeCode2));
+        $this->assertTrue($this->attributeExists('catalog_product', $attributeCode1));
+        $this->assertTrue($this->attributeExists('catalog_product', $attributeCode2));
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
-                'command'       => $command->getName(),
-                'entityType'    => 'catalog_product',
-                'attributeCode' => array($attributeCode1, $attributeCode2),
-            )
+            ['command'       => $command->getName(), 'entityType'    => 'catalog_product', 'attributeCode' => [$attributeCode1, $attributeCode2]],
         );
 
-        self::assertFalse($this->attributeExists('catalog_product', $attributeCode1));
-        self::assertFalse($this->attributeExists('catalog_product', $attributeCode2));
+        $this->assertFalse($this->attributeExists('catalog_product', $attributeCode1));
+        $this->assertFalse($this->attributeExists('catalog_product', $attributeCode2));
 
-        self::assertContains(
-            'Successfully removed attribute: "crazyCoolAttribute1" from entity type: "catalog_product"',
-            $commandTester->getDisplay()
-        );
+        $this->assertStringContainsString('Successfully removed attribute: "crazyCoolAttribute1" from entity type: "catalog_product"', $commandTester->getDisplay());
 
-        self::assertContains(
-            'Successfully removed attribute: "crazyCoolAttribute2" from entity type: "catalog_product"',
-            $commandTester->getDisplay()
-        );
+        $this->assertStringContainsString('Successfully removed attribute: "crazyCoolAttribute2" from entity type: "catalog_product"', $commandTester->getDisplay());
     }
 
     public function testCanRemoveMultipleAttributesIfSomeNotExist()
@@ -163,56 +127,41 @@ class RemoveCommandTest extends TestCase
         $application = $this->getApplication();
         $application->add(new RemoveCommand());
         $application->setAutoExit(false);
+
         $command = $this->getApplication()->find('eav:attribute:remove');
 
         $attributeCode1 = 'crazyCoolAttribute1';
         $attributeCode2 = 'crazyCoolAttribute2';
-        $this->createAttribute('catalog_product', $attributeCode1, array(
-            'type'  => 'text',
-            'input' => 'text',
-            'label' => 'Test Attribute 1',
-        ));
+        $this->createAttribute('catalog_product', $attributeCode1, ['type'  => 'text', 'input' => 'text', 'label' => 'Test Attribute 1']);
 
-        self::assertTrue($this->attributeExists('catalog_product', $attributeCode1));
-        self::assertFalse($this->attributeExists('catalog_product', $attributeCode2));
+        $this->assertTrue($this->attributeExists('catalog_product', $attributeCode1));
+        $this->assertFalse($this->attributeExists('catalog_product', $attributeCode2));
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
-                'command'       => $command->getName(),
-                'entityType'    => 'catalog_product',
-                'attributeCode' => array($attributeCode1, $attributeCode2),
-            )
+            ['command'       => $command->getName(), 'entityType'    => 'catalog_product', 'attributeCode' => [$attributeCode1, $attributeCode2]],
         );
 
-        self::assertFalse($this->attributeExists('catalog_product', $attributeCode1));
-        self::assertFalse($this->attributeExists('catalog_product', $attributeCode2));
+        $this->assertFalse($this->attributeExists('catalog_product', $attributeCode1));
+        $this->assertFalse($this->attributeExists('catalog_product', $attributeCode2));
 
-        self::assertContains(
-            'Attribute: "crazyCoolAttribute2" does not exist for entity type: "catalog_product"',
-            $commandTester->getDisplay()
-        );
+        $this->assertStringContainsString('Attribute: "crazyCoolAttribute2" does not exist for entity type: "catalog_product"', $commandTester->getDisplay());
 
-        self::assertContains(
-            'Successfully removed attribute: "crazyCoolAttribute1" from entity type: "catalog_product"',
-            $commandTester->getDisplay()
-        );
+        $this->assertStringContainsString('Successfully removed attribute: "crazyCoolAttribute1" from entity type: "catalog_product"', $commandTester->getDisplay());
     }
 
     /**
-     * @return array
+     * @return \Iterator<(int | string), mixed>
      */
-    public static function entityTypeProvider()
+    public static function entityTypeProvider(): \Iterator
     {
-        return array(
-            array('catalog_category'),
-            array('catalog_product'),
-            array('creditmemo'),
-            array('customer'),
-            array('customer_address'),
-            array('invoice'),
-            array('order'),
-            array('shipment'),
-        );
+        yield ['catalog_category'];
+        yield ['catalog_product'];
+        yield ['creditmemo'];
+        yield ['customer'];
+        yield ['customer_address'];
+        yield ['invoice'];
+        yield ['order'];
+        yield ['shipment'];
     }
 
     /**
@@ -220,10 +169,17 @@ class RemoveCommandTest extends TestCase
      * @param string $attributeCode
      * @param array $data
      */
-    protected function createAttribute($entityType, $attributeCode, $data)
+    private function createAttribute($entityType, $attributeCode, $data)
     {
-        $setup = \Mage::getModel('eav/entity_setup', 'core_setup');
+        $setup = Mage::getModel('eav/entity_setup', 'core_setup');
         $setup->addAttribute($entityType, $attributeCode, $data);
+
+        // required with EAV attribute caching added in OpenMage 20.1.0
+        if (method_exists('Mage', 'getOpenMageVersion')
+            && version_compare(Mage::getOpenMageVersion(), '20.1', '>=')
+        ) {
+            Mage::app()->getCacheInstance()->cleanType('eav');
+        }
     }
 
     /**
@@ -231,9 +187,9 @@ class RemoveCommandTest extends TestCase
      * @param string $attributeCode
      * @return bool
      */
-    protected function attributeExists($entityType, $attributeCode)
+    private function attributeExists($entityType, $attributeCode)
     {
-        $codes = \Mage::getModel('eav/config')->getEntityAttributeCodes($entityType);
+        $codes = Mage::getModel('eav/config')->getEntityAttributeCodes($entityType);
         return in_array($attributeCode, $codes);
     }
 }

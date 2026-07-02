@@ -1,38 +1,33 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Developer;
 
 use N98\Magento\Command\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
-class MergeCssCommandTest extends TestCase
+final class MergeCssCommandTest extends TestCase
 {
     public function testExecute()
     {
         $application = $this->getApplication();
         $application->add(new MergeCssCommand());
         $application->setAutoExit(false);
+
         $command = $this->getApplication()->find('dev:merge-css');
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
-                'command'  => $command->getName(),
-                '--on'     => true,
-                'store'    => 'admin',
-            )
+            ['command'  => $command->getName(), '--on'     => true, 'store'    => 'admin'],
         );
-        self::assertRegExp('/CSS Merging enabled/', $commandTester->getDisplay());
+        $this->assertMatchesRegularExpression('/CSS Merging enabled/', $commandTester->getDisplay());
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
-                'command'  => $command->getName(),
-                '--off'    => true,
-                'store'    => 'admin',
-            )
+            ['command'  => $command->getName(), '--off'    => true, 'store'    => 'admin'],
         );
 
-        self::assertRegExp('/CSS Merging disabled/', $commandTester->getDisplay());
+        $this->assertMatchesRegularExpression('/CSS Merging disabled/', $commandTester->getDisplay());
     }
 }

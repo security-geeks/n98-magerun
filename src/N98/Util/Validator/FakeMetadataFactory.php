@@ -1,47 +1,69 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Util\Validator;
 
 use Symfony\Component\Validator\Exception\NoSuchMetadataException;
 use Symfony\Component\Validator\Mapping\ClassMetadata;
-use Symfony\Component\Validator\MetadataFactoryInterface;
+use Symfony\Component\Validator\Mapping\Factory\MetadataFactoryInterface;
+use Symfony\Component\Validator\Mapping\MetadataInterface;
 
+/**
+ * Class FakeMetadataFactory
+ *
+ * @package N98\Util\Validator
+ */
 class FakeMetadataFactory implements MetadataFactoryInterface
 {
-    protected $metadatas = array();
+    protected array $metadatas = [];
 
-    public function getMetadataFor($class)
+    /**
+     * Returns whether the class is able to return metadata for the given value.
+     *
+     * @param mixed $value Some value
+     *
+     * @return MetadataInterface Whether metadata can be returned for that value
+     */
+    public function getMetadataFor($value): MetadataInterface
     {
-        if (is_object($class)) {
-            $class = get_class($class);
+        if (is_object($value)) {
+            $value = get_class($value);
         }
 
-        if (!is_string($class)) {
-            throw new NoSuchMetadataException('No metadata for type ' . gettype($class));
+        if (!is_string($value)) {
+            throw new NoSuchMetadataException('No metadata for type ' . gettype($value));
         }
 
-        if (!isset($this->metadatas[$class])) {
-            throw new NoSuchMetadataException('No metadata for "' . $class . '"');
+        if (!isset($this->metadatas[$value])) {
+            throw new NoSuchMetadataException('No metadata for "' . $value . '"');
         }
 
-        return $this->metadatas[$class];
+        return $this->metadatas[$value];
     }
 
-    public function hasMetadataFor($class)
+    /**
+     * Returns whether the class is able to return metadata for the given value.
+     *
+     * @param mixed $value Some value
+     *
+     * @return bool Whether metadata can be returned for that value
+     */
+    public function hasMetadataFor($value): bool
     {
-        if (is_object($class)) {
-            $class = get_class($class);
+        if (is_object($value)) {
+            $value = get_class($value);
         }
 
-        if (!is_string($class)) {
+        if (!is_string($value)) {
             return false;
         }
 
-        return isset($this->metadatas[$class]);
+        return isset($this->metadatas[$value]);
     }
 
-    public function addMetadata(ClassMetadata $metadata)
+    public function addMetadata(ClassMetadata $classMetadata): void
     {
-        $this->metadatas[$metadata->getClassName()] = $metadata;
+        $this->metadatas[$classMetadata->getClassName()] = $classMetadata;
     }
 }

@@ -1,14 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Cache;
 
+use Exception;
+use Mage;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * Flush cache command
+ *
+ * @package N98\Magento\Command\Cache
+ */
 class FlushCommand extends AbstractCacheCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('cache:flush')
@@ -16,18 +26,21 @@ class FlushCommand extends AbstractCacheCommand
                 'reinit',
                 null,
                 InputOption::VALUE_NONE,
-                'Reinitialise the config cache after flushing'
+                'Reinitialise the config cache after flushing',
             )
             ->addOption(
                 'no-reinit',
                 null,
                 InputOption::VALUE_NONE,
-                "Don't reinitialise the config cache after flushing"
+                "Don't reinitialise the config cache after flushing",
             )
             ->setDescription('Flush magento cache storage')
         ;
+    }
 
-        $help = <<<HELP
+    public function getHelp(): string
+    {
+        return <<<HELP
 Flush the entire cache.
 
    $ n98-magerun.phar cache:flush [--reinit --no-reinit]
@@ -36,16 +49,9 @@ Options:
     --reinit Reinitialise the config cache after flushing (Default)
     --no-reinit Don't reinitialise the config cache after flushing
 HELP;
-        $this->setHelp($help);
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectMagento($output, true);
 
@@ -55,17 +61,17 @@ HELP;
         }
 
         if (!$this->initMagento()) {
-            return;
+            return Command::INVALID;
         }
 
         try {
-            \Mage::app()->loadAreaPart('adminhtml', 'events');
-        } catch (\Exception $e) {
-            $output->writeln('<error>' . $e->getMessage() . '</error>');
+            Mage::app()->loadAreaPart('adminhtml', 'events');
+        } catch (Exception $exception) {
+            $output->writeln('<error>' . $exception->getMessage() . '</error>');
         }
 
-        \Mage::dispatchEvent('adminhtml_cache_flush_all', array('output' => $output));
-        $result = \Mage::app()->getCacheInstance()->flush();
+        Mage::dispatchEvent('adminhtml_cache_flush_all', ['output' => $output]);
+        $result = Mage::app()->getCacheInstance()->flush();
         if ($result) {
             $output->writeln('<info>Cache cleared</info>');
         } else {
@@ -76,20 +82,6 @@ HELP;
             $this->reinitCache();
         }
 
-        /* Since Magento 1.10 we have an own cache handler for FPC */
-        if ($this->isEnterpriseFullPageCachePresent()) {
-            $result = \Enterprise_PageCache_Model_Cache::getCacheInstance()->flush();
-            if ($result) {
-                $output->writeln('<info>FPC cleared</info>');
-            } else {
-                $output->writeln('<error>Failed to clear FPC</error>');
-            }
-        }
-    }
-
-    protected function isEnterpriseFullPageCachePresent()
-    {
-        $isModuleEnabled = \Mage::helper('core')->isModuleEnabled('Enterprise_PageCache');
-        return $this->_magentoEnterprise && $isModuleEnabled && version_compare(\Mage::getVersion(), '1.11.0.0', '>=');
+        return Command::SUCCESS;
     }
 }

@@ -1,23 +1,25 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Admin\User;
 
 use Exception;
-use Symfony\Component\Console\Helper\DialogHelper;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\ConfirmationQuestion;
 
 /**
- * Class DeleteUserCommand
+ * Delete admin user password command
+ *
+ * @package N98\Magento\Command\Admin\User
  */
 class DeleteUserCommand extends AbstractAdminUserCommand
 {
-    /**
-     * Configure
-     */
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('admin:user:delete')
@@ -27,21 +29,14 @@ class DeleteUserCommand extends AbstractAdminUserCommand
         ;
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectMagento($output);
         if (!$this->initMagento()) {
-            return;
+            return Command::INVALID;
         }
 
-        /** @var $dialog DialogHelper */
-        $dialog = $this->getHelper('dialog');
+        $questionHelper = $this->getQuestionHelper();
 
         // Username
         $id = $this->getOrAskForArgument('id', $input, $output, 'Username or Email');
@@ -53,15 +48,15 @@ class DeleteUserCommand extends AbstractAdminUserCommand
 
         if (!$user->getId()) {
             $output->writeln('<error>User was not found</error>');
-            return;
+            return Command::FAILURE;
         }
 
         $shouldRemove = $input->getOption('force');
         if (!$shouldRemove) {
-            $shouldRemove = $dialog->askConfirmation(
+            $shouldRemove = $questionHelper->ask(
+                $input,
                 $output,
-                '<question>Are you sure?</question> <comment>[n]</comment>: ',
-                false
+                new ConfirmationQuestion('<question>Are you sure?</question> <comment>[n]</comment>: ', false),
             );
         }
 
@@ -69,11 +64,13 @@ class DeleteUserCommand extends AbstractAdminUserCommand
             try {
                 $user->delete();
                 $output->writeln('<info>User was successfully deleted</info>');
-            } catch (Exception $e) {
-                $output->writeln('<error>' . $e->getMessage() . '</error>');
+            } catch (Exception $exception) {
+                $output->writeln('<error>' . $exception->getMessage() . '</error>');
             }
         } else {
             $output->writeln('<error>Aborting delete</error>');
         }
+
+        return Command::SUCCESS;
     }
 }

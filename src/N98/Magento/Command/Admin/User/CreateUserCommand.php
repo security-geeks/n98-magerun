@@ -1,15 +1,23 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Admin\User;
 
-use Symfony\Component\Console\Helper\DialogHelper;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\Question;
 
+/**
+ * Create admin user command
+ *
+ * @package N98\Magento\Command\Admin\User
+ */
 class CreateUserCommand extends AbstractAdminUserCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('admin:user:create')
@@ -23,21 +31,17 @@ class CreateUserCommand extends AbstractAdminUserCommand
         ;
     }
 
-    /**
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectMagento($output, true);
         if ($this->initMagento()) {
             $username = $this->getOrAskForArgument('username', $input, $output);
             $email = $this->getOrAskForArgument('email', $input, $output);
             if (($password = $input->getArgument('password')) === null) {
-                /* @var $dialog DialogHelper */
-                $dialog = $this->getHelper('dialog');
-                $password = $dialog->askHiddenResponse($output, '<question>Password:</question>');
+                $dialog = $this->getQuestionHelper();
+                $question = new Question('<question>Password:</question> ');
+                $question->setHidden(true);
+                $password = $dialog->ask($input, $output, $question);
             }
 
             $firstname = $this->getOrAskForArgument('firstname', $input, $output);
@@ -46,23 +50,20 @@ class CreateUserCommand extends AbstractAdminUserCommand
                 $role = $this->getRoleModel()->load($roleName, 'role_name');
                 if (!$role->getId()) {
                     $output->writeln('<error>Role was not found</error>');
-                    return;
+                    return Command::FAILURE;
                 }
             } else {
                 // create new role if not yet existing
                 $role = $this->getRoleModel()->load('Development', 'role_name');
                 if (!$role->getId()) {
-                    $role->setName('Development')
+                    $role->setName('Development') # @phpstan-ignore method.notFound (missing in current OpenMage)
                         ->setRoleType('G')
                         ->save();
 
-                    $resourceAll = ($this->_magentoMajorVersion == self::MAGENTO_MAJOR_VERSION_2) ?
-                        \Mage_Backend_Model_Acl_Config::ACL_RESOURCE_ALL : 'all';
-
                     // give "all" privileges to role
                     $this->getRulesModel()
-                        ->setRoleId($role->getId())
-                        ->setResources(array($resourceAll))
+                        ->setRoleId((int) $role->getId())
+                        ->setResources(['all'])
                         ->saveRel();
 
                     $output->writeln('<info>The role <comment>Development</comment> was automatically created.</info>');
@@ -71,25 +72,22 @@ class CreateUserCommand extends AbstractAdminUserCommand
 
             // create new user
             $user = $this->getUserModel()
-                ->setData(array(
+                ->setData([
                     'username'  => $username,
                     'firstname' => $firstname,
                     'lastname'  => $lastname,
                     'email'     => $email,
                     'password'  => $password,
                     'is_active' => 1,
-                ))->save();
+                ])->save();
 
-            if ($this->_magentoMajorVersion == self::MAGENTO_MAJOR_VERSION_2) {
-                $user->setRoleId($role->getId())
-                    ->save();
-            } else {
-                $user->setRoleIds(array($role->getId()))
-                    ->setRoleUserId($user->getUserId())
-                    ->saveRelations();
-            }
+            $user->setRoleIds([$role->getId()])
+                ->setRoleUserId($user->getUserId())
+                ->saveRelations();
 
             $output->writeln('<info>User <comment>' . $username . '</comment> successfully created</info>');
         }
+
+        return Command::SUCCESS;
     }
 }

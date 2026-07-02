@@ -1,23 +1,30 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Customer;
 
+use Attribute;
 use Exception;
+use Mage_Customer_Model_Attribute;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * Customer info command
+ *
+ * @package N98\Magento\Command\Customer
+ */
 class InfoCommand extends AbstractCustomerCommand
 {
     /**
-     * @var array
+     * @var string[]
      */
-    protected $blacklist = array(
-        'password_hash',
-        'increment_id',
-    );
+    protected array $blacklist = ['password_hash', 'increment_id'];
 
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('customer:info')
@@ -26,54 +33,53 @@ class InfoCommand extends AbstractCustomerCommand
             ->setDescription('Loads basic customer info by email address.');
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectMagento($output);
         if (!$this->initMagento()) {
-            return;
+            return Command::INVALID;
         }
 
-        $email = $this->getHelper('parameter')->askEmail($input, $output);
-        $website = $this->getHelper('parameter')->askWebsite($input, $output);
+        $parameterHelper = $this->getParameterHelper();
+
+        $email = $parameterHelper->askEmail($input, $output);
+        $website = $parameterHelper->askWebsite($input, $output);
 
         $customer = $this->getCustomerModel()
-            ->setWebsiteId($website->getId())
+            ->setWebsiteId((int) $website->getId())
             ->loadByEmail($email);
         if ($customer->getId() <= 0) {
             $output->writeln('<error>Customer was not found</error>');
-            return;
+            return Command::FAILURE;
         }
 
-        $customer->load();
-        $table = array();
+        $table = [];
         foreach ($customer->toArray() as $key => $value) {
             if (in_array($key, $this->blacklist)) {
                 continue;
             }
+
             try {
                 $attribute = $customer->getResource()->getAttribute($key);
-                $table[] = array(
-                    $attribute instanceof \Mage_Customer_Model_Attribute
-                        ? $attribute->getFrontend()->getLabel() : $key,
-                    $attribute instanceof \Mage_Customer_Model_Attribute
-                        ? $attribute->getFrontend()->getValue($customer) : $value,
-                );
-            } catch (Exception $e) {
-                $table[] = array($key, $value);
+                $key = $attribute instanceof Mage_Customer_Model_Attribute ? $attribute->getFrontend()->getLabel() : $key;
+                $value = $attribute instanceof Mage_Customer_Model_Attribute ? $attribute->getFrontend()->getValue($customer) : $value;
+
+                if (is_array($value)) {
+                    $value = implode(' - ', $value);
+                }
+
+                $table[] = [$key, $value];
+            } catch (Exception $exception) {
+                $table[] = [$key, $value];
             }
         }
 
-        /* @var $tableHelper TableHelper */
-        $tableHelper = $this->getHelper('table');
+        $tableHelper = $this->getTableHelper();
         $tableHelper
-            ->setHeaders(array('Attribute', 'Value'))
+            ->setHeaders([Attribute::class, 'Value'])
             ->setRows($table)
             ->render($output);
+
+        return Command::SUCCESS;
     }
 }

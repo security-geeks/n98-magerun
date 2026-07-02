@@ -1,95 +1,90 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command;
 
+use Composer\Composer;
+use Composer\Downloader\DownloadManager;
 use Composer\Factory as ComposerFactory;
 use Composer\IO\ConsoleIO;
+use Composer\Package\CompleteAliasPackage;
+use Composer\Package\CompletePackage;
 use Composer\Package\Loader\ArrayLoader as PackageLoader;
 use Composer\Package\PackageInterface;
 use InvalidArgumentException;
+use Mage;
+use Mage_Core_Helper_Abstract;
+use Mage_Core_Helper_Data;
+use Mage_Core_Model_Abstract;
+use Mage_Core_Model_Resource_Db_Collection_Abstract;
+use N98\Magento\Application;
+use N98\Magento\Command\SubCommand\ConfigBag;
+use N98\Magento\Command\SubCommand\SubCommandFactory;
+use N98\Util\Console\Helper\DatabaseHelper;
+use N98\Util\Console\Helper\IoHelper;
 use N98\Util\Console\Helper\MagentoHelper;
+use N98\Util\Console\Helper\ParameterHelper;
+use N98\Util\Console\Helper\Table\Renderer\RendererFactory;
+use N98\Util\Console\Helper\TableHelper;
 use N98\Util\OperatingSystem;
 use N98\Util\StringTyped;
 use RuntimeException;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\FormatterHelper;
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\ChoiceQuestion;
+use Symfony\Component\Console\Question\Question;
+
+use function chdir;
 
 /**
  * Class AbstractMagentoCommand
  *
  * @package N98\Magento\Command
  *
- * @method \N98\Magento\Application getApplication() getApplication()
+ * @method Application getApplication()
  */
 abstract class AbstractMagentoCommand extends Command
 {
-    /**
-     * @var int
-     */
-    const MAGENTO_MAJOR_VERSION_1 = 1;
+    protected ?string $_magentoRootFolder;
 
-    /**
-     * @var int
-     */
-    const MAGENTO_MAJOR_VERSION_2 = 2;
+    protected int $_magentoMajorVersion = 1;
 
-    /**
-     * @var string
-     */
-    protected $_magentoRootFolder = null;
+    protected bool $_magentoEnterprise = false;
 
-    /**
-     * @var int
-     */
-    protected $_magentoMajorVersion = self::MAGENTO_MAJOR_VERSION_1;
+    protected array $_deprecatedAlias = [];
 
-    /**
-     * @var bool
-     */
-    protected $_magentoEnterprise = false;
+    protected array $_websiteCodeMap = [];
 
-    /**
-     * @var array
-     */
-    protected $_deprecatedAlias = array();
-
-    /**
-     * @var array
-     */
-    protected $_websiteCodeMap = array();
+    protected array $config;
 
     /**
      * Initializes the command just after the input has been validated.
      *
      * This is mainly useful when a lot of commands extends one main command
      * where some things need to be initialized based on the input arguments and options.
-     *
-     * @param InputInterface  $input  An InputInterface instance
-     * @param OutputInterface $output An OutputInterface instance
      */
-    protected function initialize(InputInterface $input, OutputInterface $output)
+    protected function initialize(InputInterface $input, OutputInterface $output): void
     {
         $this->checkDeprecatedAliases($input, $output);
     }
 
-    private function _initWebsites()
+    private function _initWebsites(): void
     {
-        $this->_websiteCodeMap = array();
-        /** @var \Mage_Core_Model_Website[] $websites */
-        $websites = \Mage::app()->getWebsites(false);
+        $this->_websiteCodeMap = [];
+        $websites = Mage::app()->getWebsites();
         foreach ($websites as $website) {
             $this->_websiteCodeMap[$website->getId()] = $website->getCode();
         }
     }
 
-    /**
-     * @param int $websiteId
-     * @return string
-     */
-    protected function _getWebsiteCodeById($websiteId)
+    protected function _getWebsiteCodeById(int $websiteId): string
     {
-        if (empty($this->_websiteCodeMap)) {
+        if ($this->_websiteCodeMap === []) {
             $this->_initWebsites();
         }
 
@@ -100,56 +95,38 @@ abstract class AbstractMagentoCommand extends Command
         return '';
     }
 
-    /**
-     * @param string $websiteCode
-     * @return int
-     */
-    protected function _getWebsiteIdByCode($websiteCode)
+    protected function _getWebsiteIdByCode(string $websiteCode): int
     {
-        if (empty($this->_websiteCodeMap)) {
+        if ($this->_websiteCodeMap === []) {
             $this->_initWebsites();
         }
+
         $websiteMap = array_flip($this->_websiteCodeMap);
 
         return $websiteMap[$websiteCode];
     }
 
-    /**
-     * @param string|null $commandClass
-     * @return array
-     */
-    protected function getCommandConfig($commandClass = null)
+    protected function getCommandConfig(?string $commandClass = null): array
     {
         if (null === $commandClass) {
             $commandClass = get_class($this);
         }
 
-        /** @var \N98\Magento\Application $application */
         $application = $this->getApplication();
         return (array) $application->getConfig('commands', $commandClass);
     }
 
-    /**
-     * @param OutputInterface $output
-     * @param string $text
-     * @param string $style
-     */
-    protected function writeSection(OutputInterface $output, $text, $style = 'bg=blue;fg=white')
+    protected function writeSection(OutputInterface $output, string $text, string $style = 'bg=blue;fg=white'): void
     {
-        $output->writeln(array(
-            '',
-            $this->getHelper('formatter')->formatBlock($text, $style, true),
-            '',
-        ));
+        /** @var FormatterHelper $helper */
+        $helper = $this->getHelper('formatter');
+        $output->writeln(['', $helper->formatBlock($text, $style, true), '']);
     }
 
     /**
      * Bootstrap magento shop
-     *
-     * @param bool $soft
-     * @return bool
      */
-    protected function initMagento($soft = false)
+    protected function initMagento(bool $soft = false): bool
     {
         $application = $this->getApplication();
         $init = $application->initMagento($soft);
@@ -163,11 +140,10 @@ abstract class AbstractMagentoCommand extends Command
     /**
      * Search for magento root folder
      *
-     * @param OutputInterface $output
      * @param bool $silent print debug messages
      * @throws RuntimeException
      */
-    public function detectMagento(OutputInterface $output, $silent = true)
+    public function detectMagento(OutputInterface $output, bool $silent = true): void
     {
         $this->getApplication()->detectMagento();
 
@@ -178,11 +154,11 @@ abstract class AbstractMagentoCommand extends Command
         if (!$silent) {
             $editionString = ($this->_magentoEnterprise ? ' (Enterprise Edition) ' : '');
             $output->writeln(
-                '<info>Found Magento ' . $editionString . 'in folder "' . $this->_magentoRootFolder . '"</info>'
+                '<info>Found Magento ' . $editionString . 'in folder "' . $this->_magentoRootFolder . '"</info>',
             );
         }
 
-        if (!empty($this->_magentoRootFolder)) {
+        if (isset($this->_magentoRootFolder) && ($this->_magentoRootFolder !== '' && $this->_magentoRootFolder !== '0')) {
             return;
         }
 
@@ -192,7 +168,7 @@ abstract class AbstractMagentoCommand extends Command
     /**
      * Die if not Enterprise
      */
-    protected function requireEnterprise(OutputInterface $output)
+    protected function requireEnterprise(OutputInterface $output): void
     {
         if (!$this->_magentoEnterprise) {
             $output->writeln('<error>Enterprise Edition is required but was not detected</error>');
@@ -200,67 +176,56 @@ abstract class AbstractMagentoCommand extends Command
         }
     }
 
-    /**
-     * @return \Mage_Core_Helper_Data
-     */
-    protected function getCoreHelper()
+    protected function getCoreHelper(): Mage_Core_Helper_Data
     {
-        if ($this->_magentoMajorVersion == self::MAGENTO_MAJOR_VERSION_2) {
-            return \Mage::helper('Mage_Core_Helper_Data');
-        }
-        return \Mage::helper('core');
+        /** @var Mage_Core_Helper_Data $helper */
+        $helper = Mage::helper('core');
+        return $helper;
     }
 
-    /**
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     * @return \Composer\Downloader\DownloadManager
-     */
-    protected function getComposerDownloadManager($input, $output)
+    protected function getComposerDownloadManager(InputInterface $input, OutputInterface $output): DownloadManager
     {
         return $this->getComposer($input, $output)->getDownloadManager();
     }
 
     /**
-     * @param array|PackageInterface $config
-     * @return \Composer\Package\CompletePackage
+     * @param mixed $config
+     * @return CompleteAliasPackage|CompletePackage
      */
     protected function createComposerPackageByConfig($config)
     {
-        $packageLoader = new PackageLoader();
-        return $packageLoader->load($config);
+        $arrayLoader = new PackageLoader();
+        return $arrayLoader->load($config);
     }
 
     /**
-     * @param InputInterface $input
-     * @param OutputInterface $output
      * @param array|PackageInterface $config
-     * @param string $targetFolder
-     * @param bool $preferSource
-     * @return \Composer\Package\CompletePackage
+     * @return CompletePackage|PackageInterface
      */
     protected function downloadByComposerConfig(
-        InputInterface $input,
+        InputInterface  $input,
         OutputInterface $output,
         $config,
-        $targetFolder,
-        $preferSource = true
+        string          $targetFolder,
+        bool            $preferSource = true
     ) {
-        $dm = $this->getComposerDownloadManager($input, $output);
+        $downloadManager = $this->getComposerDownloadManager($input, $output);
         if (!$config instanceof PackageInterface) {
             $package = $this->createComposerPackageByConfig($config);
         } else {
             $package = $config;
         }
 
-        $helper = new \N98\Util\Console\Helper\MagentoHelper();
-        $helper->detect($targetFolder);
-        if ($this->isSourceTypeRepository($package->getSourceType()) && $helper->getRootFolder() == $targetFolder) {
+        $magentoHelper = new MagentoHelper();
+        $magentoHelper->detect($targetFolder);
+        if ($this->isSourceTypeRepository($package->getSourceType()) && $magentoHelper->getRootFolder() === $targetFolder) {
             $package->setInstallationSource('source');
             $this->checkRepository($package, $targetFolder);
-            $dm->update($package, $package, $targetFolder);
+            $downloadManager->update($package, $package, $targetFolder);
         } else {
-            $dm->download($package, $targetFolder, $preferSource);
+            // @todo check cmuench
+            $downloadManager->setPreferSource($preferSource);
+            $downloadManager->download($package, $targetFolder);
         }
 
         return $package;
@@ -268,20 +233,17 @@ abstract class AbstractMagentoCommand extends Command
 
     /**
      * brings locally cached repository up to date if it is missing the requested tag
-     *
-     * @param PackageInterface $package
-     * @param string $targetFolder
      */
-    protected function checkRepository($package, $targetFolder)
+    protected function checkRepository(PackageInterface $package, string $targetFolder): void
     {
         if ($package->getSourceType() == 'git') {
             $command = sprintf(
                 'cd %s && git rev-parse refs/tags/%s',
                 escapeshellarg($this->normalizePath($targetFolder)),
-                escapeshellarg($package->getSourceReference())
+                escapeshellarg($package->getSourceReference()),
             );
             $existingTags = shell_exec($command);
-            if (!$existingTags) {
+            if (in_array($existingTags, ['', '0', false, null], true)) {
                 $command = sprintf('cd %s && git fetch', escapeshellarg($this->normalizePath($targetFolder)));
                 shell_exec($command);
             }
@@ -289,7 +251,7 @@ abstract class AbstractMagentoCommand extends Command
             $command = sprintf(
                 'cd %s && hg log --template "{tags}" -r %s',
                 escapeshellarg($targetFolder),
-                escapeshellarg($package->getSourceReference())
+                escapeshellarg($package->getSourceReference()),
             );
             $existingTag = shell_exec($command);
             if ($existingTag === $package->getSourceReference()) {
@@ -304,195 +266,117 @@ abstract class AbstractMagentoCommand extends Command
      *
      * when using a path value that has been created in a cygwin shell but then PHP uses it inside a cmd shell it needs
      * to be filtered.
-     *
-     * @param  string $path
-     * @return string
      */
-    protected function normalizePath($path)
+    protected function normalizePath(string $path): string
     {
         if (defined('PHP_WINDOWS_VERSION_BUILD')) {
-            $path = strtr($path, '/', '\\');
+            return strtr($path, '/', '\\');
         }
+
         return $path;
     }
 
     /**
-     * obtain composer
-     *
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return \Composer\Composer
+     * Obtain composer
      */
-    protected function getComposer(InputInterface $input, OutputInterface $output)
+    protected function getComposer(InputInterface $input, OutputInterface $output): Composer
     {
-        $io = new ConsoleIO($input, $output, $this->getHelperSet());
-        $config = array(
-            'config' => array(
-                'secure-http' => false,
-            ),
-        );
+        $consoleIO = new ConsoleIO($input, $output, $this->getHelperSet());
+        $config = ['config' => ['secure-http' => false]];
 
-        return ComposerFactory::create($io, $config);
+        return ComposerFactory::create($consoleIO, $config);
     }
 
     /**
-     * @param string $alias
-     * @param string $message
-     * @return AbstractMagentoCommand
+     * @return $this
      */
-    protected function addDeprecatedAlias($alias, $message)
+    protected function addDeprecatedAlias(string $alias, string $message)
     {
         $this->_deprecatedAlias[$alias] = $message;
 
         return $this;
     }
 
-    /**
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     */
-    protected function checkDeprecatedAliases(InputInterface $input, OutputInterface $output)
+    protected function checkDeprecatedAliases(InputInterface $input, OutputInterface $output): void
     {
         if (isset($this->_deprecatedAlias[$input->getArgument('command')])) {
             $output->writeln(
                 '<error>Deprecated:</error> <comment>' . $this->_deprecatedAlias[$input->getArgument('command')] .
-                '</comment>'
+                '</comment>',
             );
         }
     }
 
-    /**
-     * Magento 1 / 2 switches
-     *
-     * @param string $mage1code Magento 1 class code
-     * @param string $mage2class Magento 2 class name
-     * @return \Mage_Core_Model_Abstract
-     */
-    protected function _getModel($mage1code, $mage2class)
+    protected function _getModel(string $class): Mage_Core_Model_Abstract
     {
-        if ($this->_magentoMajorVersion == self::MAGENTO_MAJOR_VERSION_2) {
-            return \Mage::getModel($mage2class);
-        } else {
-            return \Mage::getModel($mage1code);
-        }
+        /** @var Mage_Core_Model_Abstract $model */
+        $model = Mage::getModel($class);
+        return $model;
     }
 
-    /**
-     * Magento 1 / 2 switches
-     *
-     * @param string $mage1code Magento 1 class code
-     * @param string $mage2class Magento 2 class name
-     * @return \Mage_Core_Helper_Abstract
-     */
-    protected function _getHelper($mage1code, $mage2class)
+    protected function _getHelper(string $class): Mage_Core_Helper_Abstract
     {
-        if ($this->_magentoMajorVersion == self::MAGENTO_MAJOR_VERSION_2) {
-            return \Mage::helper($mage2class);
-        } else {
-            return \Mage::helper($mage1code);
-        }
+        return Mage::helper($class);
     }
 
-    /**
-     * Magento 1 / 2 switches
-     *
-     * @param string $mage1code Magento 1 class code
-     * @param string $mage2class Magento 2 class name
-     * @return \Mage_Core_Model_Abstract
-     */
-    protected function _getSingleton($mage1code, $mage2class)
+    protected function _getSingleton(string $class): Mage_Core_Model_Abstract
     {
-        if ($this->_magentoMajorVersion == self::MAGENTO_MAJOR_VERSION_2) {
-            return \Mage::getModel($mage2class);
-        } else {
-            return \Mage::getModel($mage1code);
-        }
+        /** @var Mage_Core_Model_Abstract $model */
+        $model = Mage::getSingleton($class);
+        return $model;
     }
 
-    /**
-     * Magento 1 / 2 switches
-     *
-     * @param string $mage1code Magento 1 class code
-     * @param string $mage2class Magento 2 class name
-     * @return \Mage_Core_Model_Abstract
-     */
-    protected function _getResourceModel($mage1code, $mage2class)
+    protected function _getResourceModel(string $class): Mage_Core_Model_Resource_Db_Collection_Abstract
     {
-        if ($this->_magentoMajorVersion == self::MAGENTO_MAJOR_VERSION_2) {
-            return \Mage::getResourceModel($mage2class);
-        } else {
-            return \Mage::getResourceModel($mage1code);
-        }
+        /** @var Mage_Core_Model_Resource_Db_Collection_Abstract $model */
+        $model = Mage::getResourceModel($class);
+        return $model;
     }
 
-    /**
-     * Magento 1 / 2 switches
-     *
-     * @param string $mage1code Magento 1 class code
-     * @param string $mage2class Magento 2 class name
-     * @return \Mage_Core_Model_Abstract
-     */
-    protected function _getResourceSingleton($mage1code, $mage2class)
+    protected function _getResourceSingleton(string $class): Mage_Core_Model_Resource_Db_Collection_Abstract
     {
-        if ($this->_magentoMajorVersion == self::MAGENTO_MAJOR_VERSION_2) {
-            return \Mage::getResourceSingleton($mage2class);
-        } else {
-            return \Mage::getResourceSingleton($mage1code);
-        }
+        /** @var Mage_Core_Model_Resource_Db_Collection_Abstract $model */
+        $model = Mage::getResourceSingleton($class);
+        return $model;
     }
 
-    /**
-     * @param string $value
-     * @return bool
-     */
-    protected function _parseBoolOption($value)
+    protected function _parseBoolOption(string $value): bool
     {
         return StringTyped::parseBoolOption($value);
     }
 
-    /**
-     * @param string $value
-     * @return string
-     */
-    protected function formatActive($value)
+    public function parseBoolOption(string $value): bool
+    {
+        return $this->_parseBoolOption($value);
+    }
+
+    protected function formatActive(string $value): string
     {
         return StringTyped::formatActive($value);
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int
-     */
-    public function run(InputInterface $input, OutputInterface $output)
+    public function run(InputInterface $input, OutputInterface $output): int
     {
         $this->getHelperSet()->setCommand($this);
 
         return parent::run($input, $output);
     }
 
-    /**
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     */
-    protected function chooseInstallationFolder(InputInterface $input, OutputInterface $output)
+    protected function chooseInstallationFolder(InputInterface $input, OutputInterface $output): void
     {
         /**
          * @param string $folderName
-         *
          * @return string
          */
-        $validateInstallationFolder = function ($folderName) use ($input) {
+        $validateInstallationFolder = function (string $folderName) use ($input) {
             $folderName = rtrim(trim($folderName, ' '), '/');
             // resolve folder-name to current working directory if relative
-            if (substr($folderName, 0, 1) == '.') {
+            if (substr($folderName, 0, 1) === '.') {
                 $cwd = OperatingSystem::getCwd();
                 $folderName = $cwd . substr($folderName, 1);
             }
 
-            if (empty($folderName)) {
+            if ($folderName === '' || $folderName === '0') {
                 throw new InvalidArgumentException('Installation folder cannot be empty');
             }
 
@@ -505,7 +389,6 @@ abstract class AbstractMagentoCommand extends Command
             }
 
             if ($input->hasOption('noDownload') && $input->getOption('noDownload')) {
-                /** @var MagentoHelper $magentoHelper */
                 $magentoHelper = new MagentoHelper();
                 $magentoHelper->detect($folderName);
                 if ($magentoHelper->getRootFolder() !== $folderName) {
@@ -513,8 +396,8 @@ abstract class AbstractMagentoCommand extends Command
                         sprintf(
                             'Folder "%s" is not a Magento working copy (%s)',
                             $folderName,
-                            var_export($magentoHelper->getRootFolder(), true)
-                        )
+                            var_export($magentoHelper->getRootFolder(), true),
+                        ),
                     );
                 }
 
@@ -524,8 +407,8 @@ abstract class AbstractMagentoCommand extends Command
                         sprintf(
                             'Magento working copy in %s seems already installed. Please remove %s and retry.',
                             $folderName,
-                            $localXml
-                        )
+                            $localXml,
+                        ),
                     );
                 }
             }
@@ -535,50 +418,37 @@ abstract class AbstractMagentoCommand extends Command
 
         if (($installationFolder = $input->getOption('installationFolder')) == null) {
             $defaultFolder = './magento';
-            $question[] = "<question>Enter installation folder:</question> [<comment>" . $defaultFolder . "</comment>]";
 
-            $installationFolder = $this->getHelper('dialog')->askAndValidate(
-                $output,
-                $question,
-                $validateInstallationFolder,
-                false,
-                $defaultFolder
+            $dialog = $this->getQuestionHelper();
+            $question = new Question(
+                '<question>Enter installation folder:</question> [<comment>' . $defaultFolder . '</comment>]',
+                $defaultFolder,
             );
+            $question->setValidator($validateInstallationFolder);
+
+            $installationFolder = $dialog->ask($input, $output, $question);
         } else {
             // @Todo improve validation and bring it to 1 single function
             $installationFolder = $validateInstallationFolder($installationFolder);
         }
 
-        $this->config['installationFolder'] = realpath($installationFolder);
-        \chdir($this->config['installationFolder']);
+        $this->config['installationFolder'] = (string) realpath($installationFolder);
+        chdir($this->config['installationFolder']);
     }
 
-    /**
-     * @param string $type
-     *
-     * @return bool
-     */
-    protected function isSourceTypeRepository($type)
+    protected function isSourceTypeRepository(string $type): bool
     {
-        return in_array($type, array('git', 'hg'));
+        return in_array($type, ['git', 'hg']);
     }
 
-    /**
-     * @param string $argument
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     * @param string $message
-     * @return string
-     */
-    protected function getOrAskForArgument($argument, InputInterface $input, OutputInterface $output, $message = null)
+    protected function getOrAskForArgument(string $argument, InputInterface $input, OutputInterface $output, ?string $message = null): ?string
     {
         $inputArgument = $input->getArgument($argument);
         if ($inputArgument === null) {
             $message = $this->getArgumentMessage($argument, $message);
 
-            /** @var  $dialog  \Symfony\Component\Console\Helper\DialogHelper */
-            $dialog = $this->getHelper('dialog');
-            return $dialog->ask($output, $message);
+            $dialog = $this->getQuestionHelper();
+            return $dialog->ask($input, $output, new Question($message));
         }
 
         return $inputArgument;
@@ -586,40 +456,110 @@ abstract class AbstractMagentoCommand extends Command
 
     /**
      * @param array $entries zero-indexed array of entries (represented by strings) to select from
-     * @param OutputInterface $output
-     * @param string $question
      * @return mixed
      */
-    protected function askForArrayEntry(array $entries, OutputInterface $output, $question)
+    protected function askForArrayEntry(array $entries, InputInterface $input, OutputInterface $output, string $question)
     {
-        $dialog = '';
-        foreach ($entries as $key => $entry) {
-            $dialog .= '<comment>[' . ($key + 1) . ']</comment> ' . $entry . "\n";
-        }
-        $dialog .= "<question>{$question}</question> ";
-
-        $selected = $this->getHelper('dialog')->askAndValidate($output, $dialog, function ($typeInput) use ($entries) {
-            if (!in_array($typeInput, range(1, count($entries)))) {
+        $validator = function ($typeInput) use ($entries) {
+            if (!in_array($typeInput, range(0, count($entries)))) {
                 throw new InvalidArgumentException('Invalid type');
             }
 
             return $typeInput;
-        });
+        };
 
-        return $entries[$selected - 1];
+        $questionHelper = $this->getQuestionHelper();
+        $question = new ChoiceQuestion(
+            sprintf('<question>%s</question>', $question),
+            $entries,
+        );
+        $question->setValidator($validator);
+
+        $selected = $questionHelper->ask($input, $output, $question);
+
+        return $entries[$selected];
     }
 
-    /**
-     * @param string $argument
-     * @param string $message [optional]
-     * @return string
-     */
-    protected function getArgumentMessage($argument, $message = null)
+    protected function getArgumentMessage(string $argument, ?string $message = null): string
     {
-        if (null === $message) {
+        if (is_null($message)) {
             $message = ucfirst($argument);
         }
 
-        return sprintf('<question>%s:</question>', $message);
+        return sprintf('<question>%s:</question> ', $message);
+    }
+
+    /**
+     * @param string $baseNamespace If this is set we can use relative class names.
+     */
+    protected function createSubCommandFactory(
+        InputInterface $input,
+        OutputInterface $output,
+        string $baseNamespace = ''
+    ): SubCommandFactory {
+        $configBag      = new ConfigBag();
+        $commandConfig  = $this->getCommandConfig();
+
+        return new SubCommandFactory(
+            $this,
+            $baseNamespace,
+            $input,
+            $output,
+            $commandConfig,
+            $configBag,
+        );
+    }
+
+    /**
+     * Adds console command "format" option
+     *
+     * Output result as csv, json, xml or text
+     *
+     * @return $this
+     */
+    public function addFormatOption(): self
+    {
+        $this->addOption(
+            'format',
+            null,
+            InputOption::VALUE_OPTIONAL,
+            'Output Format. One of [' . implode(',', RendererFactory::getFormats()) . ']',
+        );
+        return $this;
+    }
+
+    public function getDatabaseHelper(): DatabaseHelper
+    {
+        /** @var DatabaseHelper $helper */
+        $helper = $this->getHelper('database');
+        return $helper;
+    }
+
+    public function getIoHelper(): IoHelper
+    {
+        /** @var IoHelper $helper */
+        $helper = $this->getHelper('io');
+        return $helper;
+    }
+
+    public function getParameterHelper(): ParameterHelper
+    {
+        /** @var ParameterHelper $helper */
+        $helper = $this->getHelper('parameter');
+        return $helper;
+    }
+
+    public function getQuestionHelper(): QuestionHelper
+    {
+        /** @var QuestionHelper $helper */
+        $helper = $this->getHelper('question');
+        return $helper;
+    }
+
+    public function getTableHelper(): TableHelper
+    {
+        /** @var TableHelper $helper */
+        $helper = $this->getHelper('table');
+        return $helper;
     }
 }

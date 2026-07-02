@@ -1,74 +1,59 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Developer\Theme;
 
+use Mage;
+use Mage_Core_Model_Design_Package;
 use N98\Magento\Command\AbstractMagentoCommand;
-use N98\Util\Console\Helper\Table\Renderer\RendererFactory;
-use N98\Util\Console\Helper\TableHelper;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * List theme command
+ *
+ * @package N98\Magento\Command\Developer\Theme
+ */
 class ListCommand extends AbstractMagentoCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('dev:theme:list')
             ->setDescription('Lists all available themes')
-            ->addOption(
-                'format',
-                null,
-                InputOption::VALUE_OPTIONAL,
-                'Output Format. One of [' . implode(',', RendererFactory::getFormats()) . ']'
-            )
+            ->addFormatOption()
         ;
     }
 
-    /**
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectMagento($output);
         if (!$this->initMagento()) {
-            return;
+            return Command::INVALID;
         }
 
         $packages = $this->getThemes();
-        $table = array();
+        $table = [];
         foreach ($packages as $package => $themes) {
             foreach ($themes as $theme) {
-                $table[] = array(
-                    ($package ? $package . '/' : '') . $theme,
-                );
+                $table[] = [($package !== 0 && ($package !== '' && $package !== '0') ? $package . '/' : '') . $theme];
             }
         }
 
-        /* @var $tableHelper TableHelper */
-        $tableHelper = $this->getHelper('table');
+        $tableHelper = $this->getTableHelper();
         $tableHelper
-            ->setHeaders(array('Theme'))
+            ->setHeaders(['Theme'])
             ->renderByFormat($output, $table, $input->getOption('format'));
+
+        return Command::SUCCESS;
     }
 
-    /**
-     * @return array
-     */
-    protected function getThemes()
+    protected function getThemes(): array
     {
-        if ($this->_magentoMajorVersion == self::MAGENTO_MAJOR_VERSION_2) {
-            $collection = \Mage::getModel('Mage_Core_Model_Theme')->getLabelsCollection();
-            $themes = array();
-            foreach ($collection as $theme) {
-                $themes[] = $theme['label'];
-            }
-
-            return array($themes);
-        }
-
-        return \Mage::getModel('core/design_package')->getThemeList();
+        /** @var Mage_Core_Model_Design_Package $model */
+        $model = Mage::getModel('core/design_package');
+        return $model->getThemeList();
     }
 }

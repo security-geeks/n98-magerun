@@ -2,6 +2,17 @@
 netz98 magerun CLI tools for Magento 1
 ======================================
 
+Repository sunset
+-----------------
+
+As of 2026-07-02, this repository is sunset. Magento 1 has been end-of-life for
+years, so this project is no longer maintained by valantic. The project may be
+forked and continued by the OpenMage team in the future.
+
+----
+
+.. image:: .github/doc/magerun-logo.png
+
 The n98 magerun cli tools provides some handy tools to work with Magento from command line.
 
 .. image:: https://badges.gitter.im/netz98/magerun.svg
@@ -12,7 +23,7 @@ Build Status
 ------------
 
 +------------------------+-----------------------------------------------------------------------------------------------+
-| **Latest Release**     | .. image:: https://img.shields.io/maintenance/yes/2021.svg                                    | 
+| **Latest Release**     | .. image:: https://img.shields.io/maintenance/yes/2021.svg                                    |
 |                        | .. image:: https://travis-ci.org/netz98/n98-magerun.png?branch=master                         |
 |                        |    :target: https://travis-ci.org/netz98/n98-magerun                                          |
 |                        | .. image:: https://scrutinizer-ci.com/g/netz98/n98-magerun/badges/quality-score.png?b=master  |
@@ -90,7 +101,7 @@ The command should execute successfully and show you the version number of N98-M
 
 .. code-block:: sh
 
-    n98-magerun version 1.97.0 by netz98 new media GmbH
+    n98-magerun version 2.3.0 by valantic CEC
 
 You now have successfully installed Magerun! You can tailor the installation further like installing it system-wide and
 enable autocomplete - read on for more information about these and other features.
@@ -668,7 +679,7 @@ Dumps merged XML configuration to stdout. Useful to see all the XML.
 
 .. code-block:: sh
 
-   $ n98-magerun.phar [xpath]
+   $ n98-magerun.phar config:dump [xpath]
 
 Examples
 ^^^^^^^^

@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Util\Console\Helper;
 
+use Mage;
 use N98\Magento\Application;
 use Symfony\Component\Console\Helper\Helper as AbstractHelper;
 use Symfony\Component\Console\Input\ArgvInput;
@@ -17,45 +20,27 @@ use Symfony\Component\Finder\Finder;
  */
 class MagentoHelper extends AbstractHelper
 {
-    /**
-     * @var string
-     */
-    protected $_magentoRootFolder = null;
+    protected string $_magentoRootFolder = '';
+
+    protected int $_magentoMajorVersion = 1;
+
+    protected bool $_magentoEnterprise = false;
+
+    protected bool $_magerunStopFileFound = false;
+
+    protected string $_magerunStopFileFolder = '';
 
     /**
-     * @var int
-     */
-    protected $_magentoMajorVersion = \N98\Magento\Application::MAGENTO_MAJOR_VERSION_1;
-
-    /**
-     * @var bool
-     */
-    protected $_magentoEnterprise = false;
-
-    /**
-     * @var bool
-     */
-    protected $_magerunStopFileFound = false;
-
-    /**
-     * @var string
-     */
-    protected $_magerunStopFileFolder = null;
-
-    /**
-     * @var InputInterface
+     * @var InputInterface|ArgvInput
      */
     protected $input;
 
     /**
-     * @var OutputInterface
+     * @var OutputInterface|ConsoleOutput
      */
     protected $output;
 
-    /**
-     * @var string
-     */
-    protected $_customConfigFilename = 'n98-magerun.yaml';
+    protected string $_customConfigFilename = 'n98-magerun.yaml';
 
     /**
      * Returns the canonical name of this helper.
@@ -64,22 +49,18 @@ class MagentoHelper extends AbstractHelper
      *
      * @api
      */
-    public function getName()
+    public function getName(): string
     {
         return 'magento';
     }
 
-    /**
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     */
-    public function __construct(InputInterface $input = null, OutputInterface $output = null)
+    public function __construct(?InputInterface $input = null, ?OutputInterface $output = null)
     {
-        if (null === $input) {
+        if (!$input instanceof InputInterface) {
             $input = new ArgvInput();
         }
 
-        if (null === $output) {
+        if (!$output instanceof OutputInterface) {
             $output = new ConsoleOutput();
         }
 
@@ -90,11 +71,9 @@ class MagentoHelper extends AbstractHelper
     /**
      * Start Magento detection
      *
-     * @param string $folder
      * @param array $subFolders [optional] sub-folders to check
-     * @return bool
      */
-    public function detect($folder, array $subFolders = array())
+    public function detect(string $folder, array $subFolders = []): bool
     {
         $folders = $this->splitPathFolders($folder);
         $folders = $this->checkMagerunFile($folders);
@@ -102,7 +81,11 @@ class MagentoHelper extends AbstractHelper
         $folders = array_merge($folders, $subFolders);
 
         foreach (array_reverse($folders) as $searchFolder) {
-            if (!is_dir($searchFolder) || !is_readable($searchFolder)) {
+            if (!is_dir($searchFolder)) {
+                continue;
+            }
+
+            if (!is_readable($searchFolder)) {
                 continue;
             }
 
@@ -115,62 +98,45 @@ class MagentoHelper extends AbstractHelper
         return false;
     }
 
-    /**
-     * @return string
-     */
-    public function getRootFolder()
+    public function getRootFolder(): string
     {
         return $this->_magentoRootFolder;
     }
 
-    public function getEdition()
+    public function getEdition(): int
     {
         return $this->_magentoMajorVersion;
     }
 
-    /**
-     * @return bool
-     */
-    public function isEnterpriseEdition()
+    public function isEnterpriseEdition(): bool
     {
         return $this->_magentoEnterprise;
     }
 
-    /**
-     * @return int
-     */
-    public function getMajorVersion()
+    public function getMajorVersion(): int
     {
         return $this->_magentoMajorVersion;
     }
 
-    /**
-     * @return boolean
-     */
-    public function isMagerunStopFileFound()
+    public function isMagerunStopFileFound(): bool
     {
         return $this->_magerunStopFileFound;
     }
 
-    /**
-     * @return string
-     */
-    public function getMagerunStopFileFolder()
+    public function getMagerunStopFileFolder(): ?string
     {
         return $this->_magerunStopFileFolder;
     }
 
     /**
-     * @param string $folder
-     *
-     * @return array
+     * @return string[]
      */
-    protected function splitPathFolders($folder)
+    protected function splitPathFolders(string $folder): array
     {
-        $folders = array();
+        $folders = [];
 
         $folderParts = explode(DIRECTORY_SEPARATOR, $folder);
-        foreach ($folderParts as $key => $part) {
+        foreach (array_keys($folderParts) as $key) {
             $explodedFolder = implode(DIRECTORY_SEPARATOR, array_slice($folderParts, 0, $key + 1));
             if ($explodedFolder !== '') {
                 $folders[] = $explodedFolder;
@@ -182,20 +148,17 @@ class MagentoHelper extends AbstractHelper
 
     /**
      * Check for modman file and .basedir
-     *
-     * @param array $folders
-     *
-     * @return array
      */
-    protected function checkModman(array $folders)
+    protected function checkModman(array $folders): array
     {
         foreach (array_reverse($folders) as $searchFolder) {
             if (!is_readable($searchFolder)) {
                 if (OutputInterface::VERBOSITY_DEBUG <= $this->output->getVerbosity()) {
                     $this->output->writeln(
-                        '<debug>Folder <info>' . $searchFolder . '</info> is not readable. Skip.</debug>'
+                        '<debug>Folder <info>' . $searchFolder . '</info> is not readable. Skip.</debug>',
                     );
                 }
+
                 continue;
             }
 
@@ -211,17 +174,15 @@ class MagentoHelper extends AbstractHelper
 
             $count = $finder->count();
             if ($count > 0) {
-                $baseFolderContent = trim(file_get_contents($searchFolder . DIRECTORY_SEPARATOR . '.basedir'));
+                $baseFolderContent = trim((string) file_get_contents($searchFolder . DIRECTORY_SEPARATOR . '.basedir'));
                 if (OutputInterface::VERBOSITY_DEBUG <= $this->output->getVerbosity()) {
                     $this->output->writeln(
-                        '<debug>Found modman .basedir file with content <info>' . $baseFolderContent . '</info></debug>'
+                        '<debug>Found modman .basedir file with content <info>' . $baseFolderContent . '</info></debug>',
                     );
                 }
 
-                if (!empty($baseFolderContent)) {
-                    array_push(
-                        $folders, $searchFolder . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . $baseFolderContent
-                    );
+                if ($baseFolderContent !== '' && $baseFolderContent !== '0') {
+                    $folders[] = $searchFolder . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . $baseFolderContent;
                 }
             }
         }
@@ -231,22 +192,21 @@ class MagentoHelper extends AbstractHelper
 
     /**
      * Check for magerun stop-file
-     *
-     * @param array $folders
-     *
-     * @return array
+     * @param string[] $folders
      */
-    protected function checkMagerunFile(array $folders)
+    protected function checkMagerunFile(array $folders): array
     {
         foreach (array_reverse($folders) as $searchFolder) {
             if (!is_readable($searchFolder)) {
                 if (OutputInterface::VERBOSITY_DEBUG <= $this->output->getVerbosity()) {
                     $this->output->writeln(
-                        sprintf('<debug>Folder <info>%s</info> is not readable. Skip.</debug>', $searchFolder)
+                        sprintf('<debug>Folder <info>%s</info> is not readable. Skip.</debug>', $searchFolder),
                     );
                 }
+
                 continue;
             }
+
             $stopFile = '.' . pathinfo($this->_customConfigFilename, PATHINFO_FILENAME);
             $finder = Finder::create();
             $finder
@@ -263,28 +223,24 @@ class MagentoHelper extends AbstractHelper
                 $this->_magerunStopFileFound = true;
                 $this->_magerunStopFileFolder = $searchFolder;
                 $magerunFilePath = $searchFolder . DIRECTORY_SEPARATOR . $stopFile;
-                $magerunFileContent = trim(file_get_contents($magerunFilePath));
+                $magerunFileContent = trim((string) file_get_contents($magerunFilePath));
                 if (OutputInterface::VERBOSITY_DEBUG <= $this->output->getVerbosity()) {
                     $message = sprintf(
-                        '<debug>Found stopfile \'%s\' file with content <info>%s</info></debug>', $stopFile,
-                        $magerunFileContent
+                        "<debug>Found stopfile '%s' file with content <info>%s</info></debug>",
+                        $stopFile,
+                        $magerunFileContent,
                     );
                     $this->output->writeln($message);
                 }
 
-                array_push($folders, $searchFolder . DIRECTORY_SEPARATOR . $magerunFileContent);
+                $folders[] = $searchFolder . DIRECTORY_SEPARATOR . $magerunFileContent;
             }
         }
 
         return $folders;
     }
 
-    /**
-     * @param string $searchFolder
-     *
-     * @return bool
-     */
-    protected function _search($searchFolder)
+    protected function _search(string $searchFolder): bool
     {
         if (OutputInterface::VERBOSITY_DEBUG <= $this->output->getVerbosity()) {
             $this->output->writeln('<debug>Search for Magento in folder <info>' . $searchFolder . '</info></debug>');
@@ -296,7 +252,7 @@ class MagentoHelper extends AbstractHelper
 
         $finder = Finder::create();
         $finder
-            ->ignoreUnreadableDirs(true)
+            ->ignoreUnreadableDirs()
             ->depth(0)
             ->followLinks()
             ->name('Mage.php')
@@ -306,25 +262,12 @@ class MagentoHelper extends AbstractHelper
 
         if ($finder->count() > 0) {
             $files = iterator_to_array($finder, false);
-            /* @var $file \SplFileInfo */
-
-            $hasMageFile = false;
-            foreach ($files as $file) {
-                if ($file->getFilename() === 'Mage.php') {
-                    $hasMageFile = true;
-                }
-            }
+            /* @var \SplFileInfo $file */
 
             $this->_magentoRootFolder = $searchFolder;
 
-            // Magento 2 does not have a god class and thus if this file is not there it is version 2
-            if ($hasMageFile === false) {
-                $this->_magentoMajorVersion = Application::MAGENTO_MAJOR_VERSION_2;
-                return true; // the rest of this does not matter since we are simply exiting with a notice
-            }
-
-            if (is_callable(array('\Mage', 'getEdition'))) {
-                $this->_magentoEnterprise = (\Mage::getEdition() == 'Enterprise');
+            if (is_callable(['\Mage', 'getEdition'])) {
+                $this->_magentoEnterprise = (Mage::getEdition() == 'Enterprise');
             } else {
                 $this->_magentoEnterprise = is_dir($this->_magentoRootFolder . '/app/code/core/Enterprise') ||
                     is_dir($this->_magentoRootFolder . '/app/design/frontend/enterprise/default/layout');
@@ -332,7 +275,7 @@ class MagentoHelper extends AbstractHelper
 
             if (OutputInterface::VERBOSITY_DEBUG <= $this->output->getVerbosity()) {
                 $this->output->writeln(
-                    '<debug>Found Magento in folder <info>' . $this->_magentoRootFolder . '</info></debug>'
+                    '<debug>Found Magento in folder <info>' . $this->_magentoRootFolder . '</info></debug>',
                 );
             }
 

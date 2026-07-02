@@ -1,22 +1,27 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Admin\User;
 
 use N98\Magento\Command\TestCase;
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Tester\CommandTester;
 
 /**
  * Class ChangeStatusCommandTest
  */
-class ChangeStatusCommandTest extends TestCase
+final class ChangeStatusCommandTest extends TestCase
 {
-    protected $command;
-    protected $userModel;
-    protected $commandName = 'admin:user:change-status';
+    private $command;
 
-    public function setUp()
+    private $userModel;
+
+    private $commandName = 'admin:user:change-status';
+
+    protected function setUp(): void
     {
-        $this->command = $this->getMockBuilder(\N98\Magento\Command\Admin\User\ChangeStatusCommand::class)
+        $this->command = $this->getMockBuilder(ChangeStatusCommand::class)
             ->setMethods(['getUserModel'])
             ->getMock();
 
@@ -34,7 +39,7 @@ class ChangeStatusCommandTest extends TestCase
     {
         $username = 'aydin';
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('loadByUsername')
             ->with($username)
             ->willReturn($this->userModel);
@@ -50,7 +55,7 @@ class ChangeStatusCommandTest extends TestCase
             ->willReturn(2);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('validate');
 
         $this->userModel
@@ -59,12 +64,12 @@ class ChangeStatusCommandTest extends TestCase
             ->willReturn(0);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('setIsActive')
             ->with(1);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('save');
 
         $this->userModel
@@ -73,30 +78,28 @@ class ChangeStatusCommandTest extends TestCase
             ->willReturn(1);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('getUsername')
             ->willReturn($username);
 
         $application = $this->getApplication();
         $application->add($this->command);
+
         $command = $this->getApplication()->find($this->commandName);
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
-                'command'   => $command->getName(),
-                'id'        => $username,
-            )
+            ['command'   => $command->getName(), 'id'        => $username],
         );
 
-        self::assertContains("User $username is now active", $commandTester->getDisplay());
+        $this->assertStringContainsString(sprintf('User %s is now active', $username), $commandTester->getDisplay());
     }
 
     public function testCanDisableUser()
     {
         $username = 'aydin';
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('loadByUsername')
             ->with($username)
             ->willReturn($this->userModel);
@@ -112,7 +115,7 @@ class ChangeStatusCommandTest extends TestCase
             ->willReturn(2);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('validate');
 
         $this->userModel
@@ -121,12 +124,12 @@ class ChangeStatusCommandTest extends TestCase
             ->willReturn(1);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('setIsActive')
             ->with(0);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('save');
 
         $this->userModel
@@ -135,30 +138,28 @@ class ChangeStatusCommandTest extends TestCase
             ->willReturn(2);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('getUsername')
             ->willReturn($username);
 
         $application = $this->getApplication();
         $application->add($this->command);
+
         $command = $this->getApplication()->find($this->commandName);
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
-                'command'   => $command->getName(),
-                'id'        => $username,
-            )
+            ['command'   => $command->getName(), 'id'        => $username],
         );
 
-        self::assertContains("User $username is now inactive", $commandTester->getDisplay());
+        $this->assertStringContainsString(sprintf('User %s is now inactive', $username), $commandTester->getDisplay());
     }
 
     public function testCanToggleUserByEmail()
     {
         $username = 'aydin';
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('loadByUsername')
             ->with($username)
             ->willReturn($this->userModel);
@@ -169,7 +170,7 @@ class ChangeStatusCommandTest extends TestCase
             ->willReturn(0);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('load')
             ->willReturn($this->userModel);
 
@@ -179,7 +180,7 @@ class ChangeStatusCommandTest extends TestCase
             ->willReturn(2);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('validate');
 
         $this->userModel
@@ -188,12 +189,12 @@ class ChangeStatusCommandTest extends TestCase
             ->willReturn(0);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('setIsActive')
             ->with(1);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('save');
 
         $this->userModel
@@ -202,29 +203,27 @@ class ChangeStatusCommandTest extends TestCase
             ->willReturn(1);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('getUsername')
             ->willReturn($username);
 
         $application = $this->getApplication();
         $application->add($this->command);
+
         $command = $this->getApplication()->find($this->commandName);
 
         $commandTester = new CommandTester($command);
         $commandTester->execute(
-            array(
-                'command'   => $command->getName(),
-                'id'        => $username,
-            )
+            ['command'   => $command->getName(), 'id'        => $username],
         );
 
-        self::assertContains("User $username is now active", $commandTester->getDisplay());
+        $this->assertStringContainsString(sprintf('User %s is now active', $username), $commandTester->getDisplay());
     }
 
     public function testReturnEarlyIfUserNotFound()
     {
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('loadByUsername')
             ->with('notauser')
             ->willReturn($this->userModel);
@@ -235,7 +234,7 @@ class ChangeStatusCommandTest extends TestCase
             ->willReturn(null);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('load')
             ->with('notauser', 'email')
             ->willReturn($this->userModel);
@@ -247,31 +246,29 @@ class ChangeStatusCommandTest extends TestCase
 
         $application = $this->getApplication();
         $application->add($this->command);
+
         $command = $this->getApplication()->find($this->commandName);
 
         $commandTester = new CommandTester($command);
-        $commandTester->execute(array(
-            'command'   => $command->getName(),
-            'id'        => 'notauser',
-        ));
+        $commandTester->execute(['command'   => $command->getName(), 'id'        => 'notauser']);
 
-        self::assertContains('User was not found', $commandTester->getDisplay());
+        $this->assertStringContainsString('User was not found', $commandTester->getDisplay());
     }
 
     public function testIfNoIdIsPresentItIsPromptedFor()
     {
         $userEmail = 'aydin@hotmail.co.uk';
-        $dialog = $this->getMockBuilder(\Symfony\Component\Console\Helper\DialogHelper::class)
+        $dialog = $this->getMockBuilder(QuestionHelper::class)
             ->disableOriginalConstructor()
             ->setMethods(['ask'])
             ->getMock();
 
-        $dialog->expects(self::once())
+        $dialog->expects($this->once())
             ->method('ask')
             ->willReturn($userEmail);
 
         $this->userModel
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('loadByUsername')
             ->with($userEmail)
             ->willReturn($this->userModel);
@@ -286,16 +283,15 @@ class ChangeStatusCommandTest extends TestCase
 
         $application = $this->getApplication();
         $application->add($this->command);
+
         $command = $this->getApplication()->find($this->commandName);
 
         // We override the standard helper with our mock
         $command->getHelperSet()->set($dialog, 'dialog');
 
         $commandTester = new CommandTester($command);
-        $commandTester->execute(array(
-            'command'   => $command->getName(),
-        ));
+        $commandTester->execute(['command'   => $command->getName()]);
 
-        self::assertContains("User aydin is now inactive", $commandTester->getDisplay());
+        $this->assertStringContainsString('User aydin is now inactive', $commandTester->getDisplay());
     }
 }

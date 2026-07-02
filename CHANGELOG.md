@@ -1,6 +1,44 @@
 RECENT CHANGES
 ==============
 
+3.0.1
+-----
+
+- Fix: Release process fix - semver check (by Christian Münch)
+
+3.0.0
+-----
+
+- Break: Major update to Symfony 6.4 (by Sven Reichel)
+- Break: Removed Enterprise Edition commands (by Sven Reichel)
+- Add: PHP 8.1 support (by Sven Reichel, Christian Münch)
+- Add: Support and tests for latest OpenMage LTS versions (by Sven Reichel, Christian Münch)
+- Add: Functional tests based on bats (by Sven Reichel)
+- Add: Github Action Workflow for phar build (by Christian Münch)
+- Add: Requirement for ext-zip (by Sven Reichel)
+- Imp: Rebranding from netz98 to valantic CEC (by Christian Münch)
+- Imp: Update 3rd party dependencies (twig, phing, composer, psysh, vfsstream, php-cs-fixer) (by Dependbot)
+- Imp: New installer based on composer packages (by Sven Reichel)
+- Imp: Replace old installer config with new package based config (by Sven Reichel)
+- Imp: Require app/bootstrap.php during initialization (by Justin Beaty)
+- Imp: Github Actions update to Ubuntu 20.04 (by Sven Reichel)
+- Del: Removed bundled Composer package (by Sven Reichel)
+- Del: Removed shell command (by Sven Reichel)
+- Del: Removed legacy Magento 2 code leftovers (by Sven Reichel)
+- Fix: Install Command: Fix issue with unescaped characters in database name (by Christoph Massmann)
+- Fix: Fix Call to undefined method N98\Magento\Application::renderException() (by Sven Reichel)
+- Fix: Remove wrong "Path" class constant (by Christian Münch)
+- Fix: Set default app name correctly (by Christian Münch)
+- Fix: Documentation updates (by Milan Davídek)
+
+2.3.0
+-----
+
+- Add: OpenMage 20.0.14 (by Christian Münch)
+- Imp: Update 3rd party dependencies 
+       (twig, phing, symfony, composer, psysh, vsfstream)
+- Imp: Github action configuration (by neilnaveen)
+
 2.2.0
 -----
 

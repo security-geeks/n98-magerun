@@ -1,9 +1,6 @@
 <?php
-/**
- * this file is part of magerun
- *
- * @author Tom Klingenberg <https://github.com/ktomk>
- */
+
+declare(strict_types=1);
 
 namespace N98\Util;
 
@@ -14,58 +11,53 @@ use RuntimeException;
  * Class VerifyOrDie
  *
  * @package N98\Util
+ *
+ * @author Tom Klingenberg (https://github.com/ktomk)
  */
 class VerifyOrDie
 {
     /**
      * Portable basename
-     *
-     * @param string $basename
-     * @param string $message [optional]
-     * @return string
      */
-    public static function filename($basename, $message = null)
+    public static function filename(?string $basename, ?string $message = null): string
     {
         static::argumentType('basename', 'string', $basename);
-        null === $message || static::argumentType('message', 'string', $message);
+        if (null !== $message) {
+            static::argumentType('message', 'string', $message);
+        }
 
         # a filename must at least contain a single character
-        if (!strlen($basename)) {
-            self::violation($message ?: 'Filename is zero-length string');
+        if ($basename === '') {
+            self::violation(in_array($message, [null, '', '0'], true) ? 'Filename is zero-length string' : $message);
         }
 
         # no control characters, no posix forbidden ones, no windows forbidden ones and no spaces - and not empty
         $pattern = '~^[^\x00-\x1F\x7F/<>:"\\|?* ]+$~';
-        if (!preg_match($pattern, $basename)) {
-            self::violation($message ?: sprintf("Filename %s is not portable", var_export($basename, true)));
+        if (in_array(preg_match($pattern, $basename), [0, false], true)) {
+            self::violation(in_array($message, [null, '', '0'], true) ? sprintf('Filename %s is not portable', var_export($basename, true)) : $message);
         }
 
         if ('-' === $basename[0]) {
-            self::violation($message ?: sprintf("Filename %s starts with a dash", var_export($basename, true)));
+            self::violation(in_array($message, [null, '', '0'], true) ? sprintf('Filename %s starts with a dash', var_export($basename, true)) : $message);
         }
 
         return $basename;
     }
 
     /**
-     * @param string $name
-     * @param string $internalType
      * @param mixed $subject
      */
-    public static function argumentType($name, $internalType, $subject)
+    public static function argumentType(string $name, string $internalType, $subject): void
     {
         $actual = gettype($subject);
         if ($actual !== $internalType) {
             throw new InvalidArgumentException(
-                sprintf('Parameter %s must be of type %s, %s given', $name, $internalType, $actual)
+                sprintf('Parameter %s must be of type %s, %s given', $name, $internalType, $actual),
             );
         }
     }
 
-    /**
-     * @param string $message
-     */
-    private static function violation($message)
+    private static function violation(string $message): void
     {
         throw new RuntimeException($message);
     }

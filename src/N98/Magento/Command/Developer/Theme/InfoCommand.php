@@ -1,128 +1,128 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Developer\Theme;
 
+use Mage;
+use Mage_Core_Model_Store;
 use N98\Magento\Command\AbstractMagentoCommand;
 use N98\Magento\Command\AbstractMagentoStoreConfigCommand;
-use N98\Util\Console\Helper\TableHelper;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * Class InfoCommand
+ * Theme info command
+ *
  * @package N98\Magento\Command\Developer\Theme
  */
 class InfoCommand extends AbstractMagentoCommand
 {
-    const THEMES_EXCEPTION = '_ua_regexp';
+    public const THEMES_EXCEPTION = '_ua_regexp';
 
     /**
-     * @var array
+     * @var array<string, string>
      */
-    protected $_configNodes = array(
+    protected array $_configNodes = [
         'Theme translations' => 'design/theme/locale',
-    );
+    ];
 
     /**
-     * @var array
+     * @var array<string, string>
      */
-    protected $_configNodesWithExceptions = array(
+    protected array $_configNodesWithExceptions = [
         'Design Package Name' => 'design/package/name',
         'Theme template'      => 'design/theme/template',
         'Theme skin'          => 'design/theme/skin',
         'Theme layout'        => 'design/theme/layout',
         'Theme default'       => 'design/theme/default',
-    );
+    ];
 
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('dev:theme:info')
             ->setDescription('Displays settings of current design on particular store view');
     }
 
-    /**
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectMagento($output);
         if (!$this->initMagento()) {
-            return;
+            return Command::INVALID;
         }
 
-        foreach (\Mage::app()->getWebsites() as $website) {
-            /* @var $website \Mage_Core_Model_Website */
+        foreach (Mage::app()->getWebsites() as $website) {
             foreach ($website->getStores() as $store) {
-                /* @var $store \Mage_Core_Model_Store */
                 $this->_displayTable($output, $store);
             }
         }
+
+        return Command::SUCCESS;
     }
 
-    protected function _displayTable(OutputInterface $output, \Mage_Core_Model_Store $store)
+    /**
+     * @return $this
+     */
+    protected function _displayTable(OutputInterface $output, Mage_Core_Model_Store $mageCoreModelStore)
     {
-        $this->writeSection(
-            $output, 'Current design setting on store: ' . $store->getWebsite()->getCode() . '/' . $store->getCode()
-        );
-        $storeInfoLines = $this->_parse($this->_configNodesWithExceptions, $store, true);
-        $storeInfoLines = array_merge($storeInfoLines, $this->_parse($this->_configNodes, $store));
+        $website        = $mageCoreModelStore->getWebsite();
+        $websiteCode    = $website ? $website->getCode() . '/' : '';
 
-        /* @var $tableHelper TableHelper */
-        $tableHelper = $this->getHelper('table');
+        $this->writeSection(
+            $output,
+            'Current design setting on store: ' . $websiteCode . $mageCoreModelStore->getCode(),
+        );
+        $storeInfoLines = $this->_parse($this->_configNodesWithExceptions, $mageCoreModelStore, true);
+        $storeInfoLines = array_merge($storeInfoLines, $this->_parse($this->_configNodes, $mageCoreModelStore));
+
+        $tableHelper = $this->getTableHelper();
         $tableHelper
-            ->setHeaders(array('Parameter', 'Value'))
+            ->setHeaders(['Parameter', 'Value'])
             ->renderByFormat($output, $storeInfoLines);
 
         return $this;
     }
 
     /**
-     * @return array
+     * @param array<string, string> $nodes
      */
-    protected function _parse(array $nodes, \Mage_Core_Model_Store $store, $withExceptions = false)
+    protected function _parse(array $nodes, Mage_Core_Model_Store $mageCoreModelStore, bool $withExceptions = false): array
     {
-        $result = array();
+        $result = [];
 
         foreach ($nodes as $nodeLabel => $node) {
-            $result[] = array(
-                $nodeLabel,
-                (string) \Mage::getConfig()->getNode(
-                    $node,
-                    AbstractMagentoStoreConfigCommand::SCOPE_STORE_VIEW,
-                    $store->getCode()
-                ),
-            );
+            $result[] = [$nodeLabel, (string) Mage::getConfig()->getNode(
+                $node,
+                AbstractMagentoStoreConfigCommand::SCOPE_STORE_VIEW,
+                $mageCoreModelStore->getCode(),
+            )];
             if ($withExceptions) {
-                $result[] = array(
-                    $nodeLabel . ' exceptions', $this->_parseException($node, $store),
-                );
+                $result[] = [$nodeLabel . ' exceptions', $this->_parseException($node, $mageCoreModelStore)];
             }
         }
 
         return $result;
     }
 
-    /**
-     * @return string
-     */
-    protected function _parseException($node, \Mage_Core_Model_Store $store)
+    protected function _parseException(string $node, Mage_Core_Model_Store $mageCoreModelStore): string
     {
-        $exception = (string) \Mage::getConfig()->getNode(
+        $exception = (string) Mage::getConfig()->getNode(
             $node . self::THEMES_EXCEPTION,
             AbstractMagentoStoreConfigCommand::SCOPE_STORE_VIEW,
-            $store->getCode()
+            $mageCoreModelStore->getCode(),
         );
 
-        if (empty($exception)) {
+        if ($exception === '' || $exception === '0') {
             return '';
         }
 
         $exceptions = unserialize($exception);
-        $result = array();
-        foreach ($exceptions as $expression) {
-            $result[] = 'Matched Expression: ' . $expression['regexp'];
-            $result[] = 'Value: ' . $expression['value'];
+        $result = [];
+        foreach ($exceptions as $exception) {
+            $result[] = 'Matched Expression: ' . $exception['regexp'];
+            $result[] = 'Value: ' . $exception['value'];
         }
 
         return implode("\n", $result);

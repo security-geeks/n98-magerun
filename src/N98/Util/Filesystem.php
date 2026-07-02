@@ -1,9 +1,6 @@
 <?php
-/**
- * this file is part of magerun
- *
- * @author Tom Klingenberg <https://github.com/ktomk>
- */
+
+declare(strict_types=1);
 
 namespace N98\Util;
 
@@ -13,17 +10,15 @@ use RuntimeException;
  * Class Filesystem
  *
  * @package N98\Util
+ *
+ * @author Tom Klingenberg (https://github.com/ktomk)
  */
 class Filesystem
 {
     /**
-     * @param string $src
-     * @param string $dst
-     * @param string[]  $blacklist
-     *
-     * @return void
+     * @param string[] $blacklist
      */
-    public function recursiveCopy($src, $dst, $blacklist = array())
+    public function recursiveCopy(string $src, string $dst, array $blacklist = []): void
     {
         if (!is_dir($dst)) {
             @mkdir($dst, 0777, true);
@@ -39,8 +34,8 @@ class Filesystem
             throw new RuntimeException(sprintf('Source directory <%s> error', $src));
         }
 
-        $skip = array_merge(array(".", ".."), $blacklist);
-        $stack = array();
+        $skip = array_merge(['.', '..'], $blacklist);
+        $stack = [];
 
         while (false !== ($file = readdir($handle))) {
             if (in_array($file, $skip)) {
@@ -53,6 +48,7 @@ class Filesystem
                 copy($src . '/' . $file, $dst . '/' . $file);
             }
         }
+
         closedir($handle);
 
         foreach ($stack as $file) {
@@ -61,14 +57,9 @@ class Filesystem
     }
 
     /**
-     * @param string $directory
-     * @param bool $empty
-     *
      * @see http://lixlpixel.org/recursive_function/php/recursive_directory_delete/
-     *
-     * @return bool
      */
-    public function recursiveRemoveDirectory($directory, $empty = false)
+    public function recursiveRemoveDirectory(string $directory, bool $empty = false): bool
     {
         // if the path has a slash at the end we remove it here
         if (substr($directory, -1) === '/') {
@@ -88,11 +79,11 @@ class Filesystem
             throw new RuntimeException(sprintf('Directory <%s> error', $directory));
         }
 
-        $skip = array(".", "..");
+        $skip = ['.', '..'];
 
         // and scan through the items inside
         while (false !== ($file = readdir($handle))) {
-            // if the filepointer is not the current directory
+            // if the file-pointer is not the current directory
             // or the parent directory
             if (in_array($file, $skip)) {
                 continue;
@@ -109,12 +100,13 @@ class Filesystem
                 // we call this function with the new path
                 $this->recursiveRemoveDirectory($path);
 
-            // if the new path is a file
+                // if the new path is a file
             } else {
                 // we remove the file
                 unlink($path);
             }
         }
+
         closedir($handle);
 
         // if the option not empty
@@ -127,18 +119,13 @@ class Filesystem
     }
 
     /**
-     * @param int $bytes
-     * @param int $decimals
-     *
      * @see http://www.php.net/manual/en/function.filesize.php#106569
-     *
-     * @return string
      */
-    public static function humanFileSize($bytes, $decimals = 2)
+    public static function humanFileSize(int $bytes, int $decimals = 2): string
     {
-        $units = array('B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y');
-        $factor = floor((strlen($bytes) - 1) / 3);
+        $units = ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
+        $factor = floor((strlen((string) $bytes) - 1) / 3);
 
-        return sprintf("%.{$decimals}f%s", $bytes / pow(1024, $factor), $units[$factor]);
+        return sprintf('%.' . $decimals . 'f%s', $bytes / 1024 ** $factor, $units[$factor]);
     }
 }

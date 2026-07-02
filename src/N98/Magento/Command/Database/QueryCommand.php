@@ -1,16 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace N98\Magento\Command\Database;
 
 use N98\Util\Exec;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * Query database command
+ *
+ * @package N98\Magento\Command\Database
+ */
 class QueryCommand extends AbstractDatabaseCommand
 {
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('db:query')
@@ -18,8 +26,11 @@ class QueryCommand extends AbstractDatabaseCommand
             ->addOption('only-command', null, InputOption::VALUE_NONE, 'Print only mysql command. Do not execute')
             ->setDescription('Executes an SQL query on the database defined in local.xml')
         ;
+    }
 
-        $help = <<<HELP
+    public function getHelp(): string
+    {
+        return <<<HELP
 Executes an SQL query on the current configured database. Wrap your SQL in
 single or double quotes.
 
@@ -27,15 +38,10 @@ If your query produces a result (e.g. a SELECT statement), the output of the
 mysql cli tool will be returned.
 
 * Requires MySQL CLI tools installed on your system.
-
 HELP;
-        $this->setHelp($help);
     }
 
-    /**
-     * @return bool
-     */
-    public function isEnabled()
+    public function isEnabled(): bool
     {
         return Exec::allowed();
     }
@@ -47,30 +53,20 @@ HELP;
      * The -e argument is enclosed by single quotes. As you can't escape
      * the single quote within the single quote, you have to end the quote,
      * then escape the single quote character and reopen the quote.
-     *
-     * @param string $query
-     * @return string
      */
-    protected function getEscapedSql($query)
+    protected function getEscapedSql(string $query): string
     {
         return str_replace("'", "'\''", $query);
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return int|void
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->detectDbSettings($output);
 
         $query = $this->getOrAskForArgument('query', $input, $output, 'SQL Query');
 
-        /** @var $helper \N98\Util\Console\Helper\DatabaseHelper */
-        $helper = $this->getHelper('database');
-        $exec = sprintf('mysql %s -e %s', $helper->getMysqlClientToolConnectionString(), escapeshellarg($query));
+        $databaseHelper = $this->getDatabaseHelper();
+        $exec = sprintf('mysql %s -e %s', $databaseHelper->getMysqlClientToolConnectionString(), escapeshellarg($query));
 
         if ($input->getOption('only-command')) {
             $output->writeln($exec);
@@ -81,5 +77,7 @@ HELP;
                 $output->writeln('<error>' . $commandOutput . '</error>');
             }
         }
+
+        return Command::SUCCESS;
     }
 }
